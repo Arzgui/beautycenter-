@@ -1,0 +1,6 @@
+# Original image exports kept locally; the website serves optimized WebP assets.
+assets/*.png
+
+# Temporary and superseded visual assets.
+assets/placeholder-*.svg
+assets/treatment-back.webp
