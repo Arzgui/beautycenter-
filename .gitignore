@@ -1,6 +1,20 @@
 # Original image exports kept locally; the website serves optimized WebP assets.
 assets/*.png
-
 # Temporary and superseded visual assets.
 assets/placeholder-*.svg
 assets/treatment-back.webp
+
+# Backend - sensitive and generated files
+backend/node_modules/
+backend/.env
+database.sqlite
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+backend/database.db

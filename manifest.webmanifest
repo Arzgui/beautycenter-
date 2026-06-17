@@ -1,0 +1,20 @@
+{
+  "name": "IS Beauty",
+  "short_name": "IS Beauty",
+  "description": "Centre d'épilation Médico Laser ICE à Forbach — rendez-vous et informations en ligne.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "assets/pwa-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    }
+  ],
+  "categories": ["health", "beauty", "lifestyle"],
+  "prefer_related_applications": false
+}

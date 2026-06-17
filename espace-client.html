@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Espace — IS Beauty</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── LAYOUT ── */
+    .client-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-bg);
+    }
+
+    .client-topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: rgba(7, 11, 20, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(26, 236, 255, 0.08);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .topbar-greeting {
+      font-size: 13px;
+      color: var(--color-muted);
+    }
+
+    .topbar-greeting strong { color: var(--color-cyan); }
+
+    .topbar-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: none;
+      font-family: var(--font-body);
+    }
+
+    .topbar-btn-rdv {
+      background: var(--color-cyan);
+      color: var(--color-bg);
+    }
+
+    .topbar-btn-rdv:hover { background: var(--color-cyan-hover); }
+
+    .topbar-btn-logout {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--color-muted);
+    }
+
+    .topbar-btn-logout:hover { border-color: rgba(255,255,255,0.3); color: var(--color-text); }
+
+    /* ── BODY LAYOUT ── */
+    .client-body {
+      display: flex;
+      flex: 1;
+      padding-top: 64px;
+    }
+
+    /* ── SIDEBAR ── */
+    .client-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      position: fixed;
+      top: 64px;
+      left: 0;
+      bottom: 0;
+      background: rgba(8, 13, 22, 0.98);
+      border-right: 1px solid rgba(26, 236, 255, 0.07);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-avatar {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 1rem 1.5rem;
+      border-bottom: 1px solid rgba(26, 236, 255, 0.07);
+      margin-bottom: 1rem;
+    }
+
+    .avatar-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(26,236,255,0.15), rgba(201,174,255,0.1));
+      border: 2px solid rgba(26, 236, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      margin-bottom: 10px;
+      box-shadow: 0 0 20px rgba(26,236,255,0.1);
+    }
+
+    .avatar-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-white);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .avatar-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(26,236,255,0.08);
+      border: 1px solid rgba(26,236,255,0.15);
+      color: var(--color-cyan);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+      padding: 0 0.75rem;
+      flex: 1;
+    }
+
+    .sidebar-nav li { margin-bottom: 2px; }
+
+    .sidebar-nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      background: none;
+      color: var(--color-muted);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      text-align: left;
+    }
+
+    .sidebar-nav-btn i {
+      width: 18px;
+      font-size: 14px;
+      color: inherit;
+    }
+
+    .sidebar-nav-btn:hover {
+      background: rgba(26,236,255,0.06);
+      color: var(--color-text);
+    }
+
+    .sidebar-nav-btn.active {
+      background: rgba(26,236,255,0.1);
+      color: var(--color-cyan);
+      border: 1px solid rgba(26,236,255,0.15);
+    }
+
+    .sidebar-points {
+      margin: 0 0.75rem;
+      padding: 12px;
+      background: rgba(26,236,255,0.05);
+      border: 1px solid rgba(26,236,255,0.1);
+      border-radius: 10px;
+    }
+
+    .sidebar-points-label {
+      font-size: 10px;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-points-value {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-cyan);
+    }
+
+    .sidebar-points-sub {
+      font-size: 11px;
+      color: var(--color-muted);
+      margin-top: 2px;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .client-main {
+      flex: 1;
+      margin-left: 220px;
+      padding: 2rem;
+      max-width: 960px;
+    }
+
+    .client-section { display: none; }
+    .client-section.active { display: block; }
+
+    .section-title-row {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title-row h2 {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--color-white);
+      letter-spacing: -0.3px;
+    }
+
+    .section-title-row p {
+      color: var(--color-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    /* ── CARDS ── */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: rgba(12, 19, 32, 0.9);
+      border: 1px solid rgba(26,236,255,0.1);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .stat-card-label {
+      font-size: 10px;
+      color: var(--color-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card-value {
+      font-family: var(--font-heading);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--color-cyan);
+      line-height: 1;
+    }
+
+    .stat-card-sub {
+      font-size: 12px;
+      color: var(--color-muted);
+      margin-top: 4px;
+    }
+
+    /* ── NEXT RDV ── */
+    .next-rdv-card {
+      background: linear-gradient(135deg, rgba(26,236,255,0.08), rgba(201,174,255,0.04));
+      border: 1px solid rgba(26,236,255,0.2);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .next-rdv-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: rgba(26,236,255,0.1);
+      border: 1px solid rgba(26,236,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-cyan);
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .next-rdv-info h3 {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      color: var(--color-white);
+      margin-bottom: 4px;
+    }
+
+    .next-rdv-info p { font-size: 13px; color: var(--color-muted); }
+    .next-rdv-info strong { color: var(--color-cyan); }
+
+    .next-rdv-empty {
+      background: rgba(12,19,32,0.8);
+      border: 1px dashed rgba(26,236,255,0.15);
+      border-radius: 14px;
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--color-muted);
+      font-size: 13px;
+      margin-bottom: 2rem;
+    }
+
+    .next-rdv-empty a {
+      color: var(--color-cyan);
+      font-weight: 600;
+    }
+
+    /* ── LOYALTY BAR ── */
+    .loyalty-card {
+      background: rgba(12,19,32,0.9);
+      border: 1px solid rgba(26,236,255,0.1);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .loyalty-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .loyalty-card-top h3 {
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      color: var(--color-white);
+    }
+
+    .loyalty-tier {
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(26,236,255,0.08);
+      border: 1px solid rgba(26,236,255,0.15);
+      color: var(--color-cyan);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .loyalty-progress-track {
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .loyalty-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-cyan), #C9AEFF);
+      border-radius: 6px;
+      transition: width 0.6s ease;
+    }
+
+    .loyalty-progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--color-muted);
+    }
+
+    /* ── BOOKING LIST ── */
+    .rdv-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .rdv-item {
+      background: rgba(12,19,32,0.9);
+      border: 1px solid rgba(26,236,255,0.08);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: var(--transition-fast);
+    }
+
+    .rdv-item:hover { border-color: rgba(26,236,255,0.18); }
+
+    .rdv-date-badge {
+      flex-shrink: 0;
+      width: 48px;
+      text-align: center;
+      background: rgba(26,236,255,0.07);
+      border: 1px solid rgba(26,236,255,0.12);
+      border-radius: 10px;
+      padding: 6px 4px;
+    }
+
+    .rdv-date-day {
+      font-family: var(--font-heading);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      line-height: 1;
+    }
+
+    .rdv-date-month {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-muted);
+      margin-top: 2px;
+    }
+
+    .rdv-info { flex: 1; }
+
+    .rdv-info h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-white);
+      margin-bottom: 3px;
+    }
+
+    .rdv-info p { font-size: 12px; color: var(--color-muted); }
+
+    .rdv-status {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-pending { background: rgba(230,126,34,0.12); color: #e67e22; }
+    .status-confirmed { background: rgba(39,174,96,0.12); color: #27ae60; }
+    .status-completed { background: rgba(26,236,255,0.1); color: var(--color-cyan); }
+    .status-canceled { background: rgba(192,57,43,0.12); color: #e74c3c; }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--color-muted);
+      font-size: 14px;
+    }
+
+    .empty-state i {
+      font-size: 2rem;
+      color: rgba(26,236,255,0.2);
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    /* ── PROFILE FORM ── */
+    .profile-card {
+      background: rgba(12,19,32,0.9);
+      border: 1px solid rgba(26,236,255,0.1);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-card h3 {
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      color: var(--color-white);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(26,236,255,0.07);
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .profile-grid .full { grid-column: 1 / -1; }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(182,244,255,0.5);
+      margin-bottom: 6px;
+    }
+
+    .field-input {
+      width: 100%;
+      background: rgba(26,236,255,0.03);
+      border: 1px solid rgba(182,244,255,0.1);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: #e8f4ff;
+      font-family: var(--font-body);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .field-input:focus {
+      border-color: var(--color-cyan);
+      background: rgba(26,236,255,0.05);
+      box-shadow: 0 0 0 3px rgba(26,236,255,0.08);
+    }
+
+    .save-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 24px;
+      background: var(--color-cyan);
+      color: var(--color-bg);
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      margin-top: 0.5rem;
+    }
+
+    .save-btn:hover { background: var(--color-cyan-hover); transform: translateY(-1px); }
+
+    /* ── MOBILE TABS ── */
+    .mobile-tabs {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(7,11,20,0.98);
+      border-top: 1px solid rgba(26,236,255,0.08);
+      padding: 8px 0 env(safe-area-inset-bottom);
+      justify-content: space-around;
+    }
+
+    .mobile-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 12px;
+      border: none;
+      background: none;
+      color: var(--color-muted);
+      font-family: var(--font-body);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+
+    .mobile-tab i { font-size: 18px; }
+    .mobile-tab.active { color: var(--color-cyan); }
+
+    @media (max-width: 768px) {
+      .client-sidebar { display: none; }
+      .client-main { margin-left: 0; padding: 1.25rem 1rem 5rem; }
+      .mobile-tabs { display: flex; }
+      .cards-row { grid-template-columns: 1fr 1fr; }
+      .profile-grid { grid-template-columns: 1fr; }
+      .profile-grid .full { grid-column: 1; }
+      .next-rdv-card { flex-direction: column; text-align: center; }
+      .topbar-greeting { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="client-page">
+
+  <!-- TOPBAR -->
+  <div class="client-topbar">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">IS</span>
+      <span class="logo-wording"><strong>Beauty</strong><small>Laser Ice</small></span>
+    </a>
+    <div class="topbar-right">
+      <span class="topbar-greeting">Bonjour, <strong id="topbarName">—</strong></span>
+      <a href="index.html#booking" class="topbar-btn topbar-btn-rdv">
+        <i class="fas fa-plus"></i> Prendre RDV
+      </a>
+      <button class="topbar-btn topbar-btn-logout" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Déconnexion
+      </button>
+    </div>
+  </div>
+
+  <div class="client-body">
+
+    <!-- SIDEBAR -->
+    <aside class="client-sidebar">
+      <div class="sidebar-avatar">
+        <div class="avatar-circle" id="avatarCircle">?</div>
+        <div class="avatar-name" id="sidebarName">—</div>
+        <div class="avatar-status" id="sidebarStatus"><i class="fas fa-star"></i> Étincelle</div>
+      </div>
+
+      <ul class="sidebar-nav">
+        <li>
+          <button class="sidebar-nav-btn active" data-section="dashboard">
+            <i class="fas fa-home"></i> Tableau de bord
+          </button>
+        </li>
+        <li>
+          <button class="sidebar-nav-btn" data-section="rdv">
+            <i class="fas fa-calendar-alt"></i> Mes rendez-vous
+          </button>
+        </li>
+        <li>
+          <button class="sidebar-nav-btn" data-section="loyalty">
+            <i class="fas fa-star"></i> Fidélité & Points
+          </button>
+        </li>
+        <li>
+          <button class="sidebar-nav-btn" data-section="profile">
+            <i class="fas fa-user"></i> Mon profil
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-points" id="sidebarPoints">
+        <div class="sidebar-points-label">Mes Éclats</div>
+        <div class="sidebar-points-value" id="sidebarPointsValue">0</div>
+        <div class="sidebar-points-sub">points fidélité</div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="client-main">
+
+      <!-- DASHBOARD -->
+      <div class="client-section active" id="section-dashboard">
+        <div class="section-title-row">
+          <h2>Tableau de bord</h2>
+          <p>Bienvenue dans votre espace IS Beauty.</p>
+        </div>
+
+        <div class="cards-row">
+          <div class="stat-card">
+            <div class="stat-card-label">Éclats</div>
+            <div class="stat-card-value" id="dashPoints">0</div>
+            <div class="stat-card-sub">points fidélité</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Séances</div>
+            <div class="stat-card-value" id="dashSessions">0</div>
+            <div class="stat-card-sub">au total</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Statut</div>
+            <div class="stat-card-value" style="font-size:1.1rem;padding-top:0.4rem" id="dashStatus">Étincelle</div>
+            <div class="stat-card-sub">programme fidélité</div>
+          </div>
+        </div>
+
+        <div id="nextRdvContainer"></div>
+
+        <div class="loyalty-card">
+          <div class="loyalty-card-top">
+            <h3>Progression fidélité</h3>
+            <span class="loyalty-tier" id="loyaltyTier">Étincelle</span>
+          </div>
+          <div class="loyalty-progress-track">
+            <div class="loyalty-progress-fill" id="loyaltyBar" style="width:0%"></div>
+          </div>
+          <div class="loyalty-progress-labels">
+            <span id="loyaltyPoints">0 Éclats</span>
+            <span id="loyaltyNext">Prochain palier : Halo à 4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RDV -->
+      <div class="client-section" id="section-rdv">
+        <div class="section-title-row">
+          <h2>Mes rendez-vous</h2>
+          <p>Historique et prochains rendez-vous.</p>
+        </div>
+        <div class="rdv-list" id="rdvList">
+          <div class="empty-state"><i class="fas fa-calendar"></i>Chargement...</div>
+        </div>
+      </div>
+
+      <!-- LOYALTY -->
+      <div class="client-section" id="section-loyalty">
+        <div class="section-title-row">
+          <h2>Fidélité & Points</h2>
+          <p>Vos Éclats, statuts et avantages.</p>
+        </div>
+
+        <div class="cards-row">
+          <div class="stat-card">
+            <div class="stat-card-label">Éclats disponibles</div>
+            <div class="stat-card-value" id="loyaltyPagePoints">0</div>
+            <div class="stat-card-sub">points accumulés</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Statut actuel</div>
+            <div class="stat-card-value" style="font-size:1.1rem;padding-top:0.4rem" id="loyaltyPageStatus">Étincelle</div>
+            <div class="stat-card-sub">niveau fidélité</div>
+          </div>
+        </div>
+
+        <div class="loyalty-card">
+          <div class="loyalty-card-top">
+            <h3>Paliers & récompenses</h3>
+          </div>
+          <div style="display:grid;gap:12px" id="tiersGrid"></div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="client-section" id="section-profile">
+        <div class="section-title-row">
+          <h2>Mon profil</h2>
+          <p>Gérez vos informations personnelles.</p>
+        </div>
+
+        <div class="profile-card">
+          <h3><i class="fas fa-user" style="color:var(--color-cyan);margin-right:8px"></i> Informations personnelles</h3>
+          <div class="profile-grid">
+            <div>
+              <label class="field-label">Nom complet</label>
+              <input type="text" class="field-input" id="profileName" />
+            </div>
+            <div>
+              <label class="field-label">Email</label>
+              <input type="email" class="field-input" id="profileEmail" disabled style="opacity:0.5" />
+            </div>
+          </div>
+          <div id="profileMsg" style="font-size:13px;margin-top:0.75rem;display:none"></div>
+          <button class="save-btn" id="saveProfileBtn"><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+
+        <div class="profile-card">
+          <h3><i class="fas fa-lock" style="color:var(--color-cyan);margin-right:8px"></i> Changer le mot de passe</h3>
+          <div class="profile-grid">
+            <div class="field" style="margin-bottom:1rem">
+  <label class="field-label">Mot de passe actuel</label>
+  <input type="password" class="field-input" id="currentPassword" placeholder="••••••••••" />
+</div>
+            <div>
+              <label class="field-label">Nouveau mot de passe</label>
+              <input type="password" class="field-input" id="newPassword" placeholder="10 caractères minimum" />
+            </div>
+            <div>
+              <label class="field-label">Confirmer</label>
+              <input type="password" class="field-input" id="confirmPassword" placeholder="••••••••••" />
+            </div>
+          </div>
+          <div id="passwordMsg" style="font-size:13px;margin-top:0.75rem;display:none"></div>
+          <button class="save-btn" id="savePasswordBtn"><i class="fas fa-key"></i> Mettre à jour</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MOBILE BOTTOM TABS -->
+  <nav class="mobile-tabs">
+    <button class="mobile-tab active" data-section="dashboard"><i class="fas fa-home"></i> Accueil</button>
+    <button class="mobile-tab" data-section="rdv"><i class="fas fa-calendar"></i> RDV</button>
+    <button class="mobile-tab" data-section="loyalty"><i class="fas fa-star"></i> Fidélité</button>
+    <button class="mobile-tab" data-section="profile"><i class="fas fa-user"></i> Profil</button>
+  </nav>
+
+</div>
+
+<script>
+const API = '';
+const token = localStorage.getItem('client_token');
+let user = JSON.parse(localStorage.getItem('client_user') || 'null');
+
+// ── GUARD ──
+if (!token) window.location.href = 'compte.html';
+
+// ── TIERS ──
+const TIERS = [
+  { name: 'Étincelle', min: 0, max: 3, reward: 'Instant Conseil offert à 3 Éclats' },
+  { name: 'Halo', min: 4, max: 7, reward: 'Bonus Douceur offert à 6 Éclats' },
+  { name: 'Aura', min: 8, max: 11, reward: 'Duo Lumière offert à 9 Éclats' },
+  { name: 'Constellation', min: 12, max: 12, reward: 'Privilège Signature à 12 Éclats' },
+];
+
+function getTier(points) {
+  return TIERS.slice().reverse().find(t => points >= t.min) || TIERS[0];
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function statusLabel(s) {
+  return { pending:'En attente', confirmed:'Confirmé', completed:'Terminé', canceled:'Annulé' }[s] || s;
+}
+
+function statusClass(s) {
+  return { pending:'status-pending', confirmed:'status-confirmed', completed:'status-completed', canceled:'status-canceled' }[s] || '';
+}
+
+function formatDate(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  return { day: d, month: months[parseInt(m) - 1] };
+}
+
+// ── INIT USER UI ──
+function initUI(userData) {
+  const name = userData?.name || 'Client';
+  const points = userData?.points || 0;
+  const tier = getTier(points);
+
+  document.getElementById('topbarName').textContent = name.split(' ')[0];
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('avatarCircle').textContent = getInitials(name);
+  document.getElementById('sidebarStatus').innerHTML = `<i class="fas fa-star"></i> ${tier.name}`;
+  document.getElementById('sidebarPointsValue').textContent = points;
+
+  document.getElementById('dashPoints').textContent = points;
+  document.getElementById('dashStatus').textContent = tier.name;
+  document.getElementById('loyaltyTier').textContent = tier.name;
+  document.getElementById('loyaltyPagePoints').textContent = points;
+  document.getElementById('loyaltyPageStatus').textContent = tier.name;
+
+  const pct = Math.min((points / 12) * 100, 100);
+  document.getElementById('loyaltyBar').style.width = pct + '%';
+  document.getElementById('loyaltyPoints').textContent = `${points} Éclats`;
+
+  const nextTier = TIERS.find(t => t.min > points);
+  document.getElementById('loyaltyNext').textContent = nextTier
+    ? `Prochain palier : ${nextTier.name} à ${nextTier.min}`
+    : 'Statut Constellation atteint ✦';
+
+  document.getElementById('profileName').value = name;
+  document.getElementById('profileEmail').value = userData?.email || '';
+
+  renderTiers(points);
+}
+
+function renderTiers(points) {
+  const grid = document.getElementById('tiersGrid');
+  grid.innerHTML = TIERS.map(t => {
+    const unlocked = points >= t.min;
+    return `
+      <div style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:10px;background:rgba(26,236,255,${unlocked?'0.07':'0.02'});border:1px solid rgba(26,236,255,${unlocked?'0.18':'0.07'})">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(26,236,255,${unlocked?'0.12':'0.04'});display:flex;align-items:center;justify-content:center;color:${unlocked?'var(--color-cyan)':'var(--color-muted)'}">
+          <i class="fas fa-${unlocked?'star':'lock'}"></i>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600;color:${unlocked?'var(--color-white)':'var(--color-muted)'};font-size:14px">${t.name} <span style="font-size:11px;color:var(--color-muted);font-weight:400">— à partir de ${t.min} Éclats</span></div>
+          <div style="font-size:12px;color:${unlocked?'var(--color-cyan)':'var(--color-muted)'}">${t.reward}</div>
+        </div>
+        ${unlocked ? '<span style="font-size:10px;color:var(--color-cyan);font-weight:700;letter-spacing:1px;text-transform:uppercase">Actif</span>' : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ── LOAD BOOKINGS ──
+async function loadBookings() {
+  try {
+    const res = await fetch(`${API}/api/bookings`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    const bookings = (data.bookings || []).filter(b => b.clientEmail === user?.email);
+
+    document.getElementById('dashSessions').textContent = bookings.filter(b => b.status === 'completed').length;
+
+    const now = new Date().toISOString().split('T')[0];
+    const upcoming = bookings.filter(b => b.appointmentDate >= now && b.status !== 'canceled').sort((a,b) => a.appointmentDate.localeCompare(b.appointmentDate));
+    const past = bookings.filter(b => b.appointmentDate < now || b.status === 'completed').sort((a,b) => b.appointmentDate.localeCompare(a.appointmentDate));
+
+    // Next RDV
+    const nextContainer = document.getElementById('nextRdvContainer');
+    if (upcoming.length) {
+      const n = upcoming[0];
+      const d = formatDate(n.appointmentDate);
+      nextContainer.innerHTML = `
+        <div class="next-rdv-card">
+          <div class="next-rdv-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="next-rdv-info">
+            <h3>${n.serviceType}</h3>
+            <p>Le <strong>${d.day} ${d.month}</strong> à <strong>${n.appointmentStart}</strong> — <span class="${statusClass(n.status)}">${statusLabel(n.status)}</span></p>
+          </div>
+        </div>`;
+    } else {
+      nextContainer.innerHTML = `<div class="next-rdv-empty"><i class="fas fa-calendar-plus" style="font-size:1.5rem;color:rgba(26,236,255,0.2);display:block;margin-bottom:8px"></i>Aucun RDV à venir. <a href="index.html#booking">Prendre rendez-vous</a></div>`;
+    }
+
+    // All bookings list
+    const allSorted = [...upcoming, ...past];
+    const list = document.getElementById('rdvList');
+    if (!allSorted.length) {
+      list.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i>Aucun rendez-vous trouvé.</div>';
+      return;
+    }
+    list.innerHTML = allSorted.map(b => {
+      const d = formatDate(b.appointmentDate);
+      return `
+        <div class="rdv-item">
+          <div class="rdv-date-badge">
+            <div class="rdv-date-day">${d.day}</div>
+            <div class="rdv-date-month">${d.month}</div>
+          </div>
+          <div class="rdv-info">
+            <h4>${b.serviceType}</h4>
+            <p>${b.appointmentStart} → ${b.appointmentEnd} ${b.price ? '· ' + b.price + ' €' : '· Gratuit'}</p>
+          </div>
+          <span class="rdv-status ${statusClass(b.status)}">${statusLabel(b.status)}</span>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('rdvList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i>Impossible de charger les RDV.</div>';
+  }
+}
+
+// ── NAVIGATION ──
+function showSection(name) {
+  document.querySelectorAll('.client-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav-btn, .mobile-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(`section-${name}`).classList.add('active');
+  document.querySelectorAll(`[data-section="${name}"]`).forEach(b => b.classList.add('active'));
+  if (name === 'rdv') loadBookings();
+}
+
+document.querySelectorAll('[data-section]').forEach(btn => {
+  btn.addEventListener('click', () => showSection(btn.dataset.section));
+});
+
+// ── LOGOUT ──
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('client_token');
+  localStorage.removeItem('client_user');
+  window.location.href = 'compte.html';
+});
+
+// ── PROFILE SAVE ──
+// ── PROFILE SAVE ──
+document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+  const name = document.getElementById('profileName').value.trim();
+  const msg = document.getElementById('profileMsg');
+  const btn = document.getElementById('saveProfileBtn');
+
+  if (!name) {
+    msg.textContent = 'Le nom ne peut pas être vide.';
+    msg.style.color = '#e74c3c';
+    msg.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.textContent = 'Sauvegarde...';
+  msg.style.color = 'var(--color-muted)';
+  msg.style.display = 'block';
+
+  try {
+    const res = await fetch(`${API}/api/auth/profile`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.message || 'Erreur lors de la mise à jour.';
+      msg.style.color = '#e74c3c';
+      return;
+    }
+    user = data.user;
+    localStorage.setItem('client_user', JSON.stringify(user));
+    initUI(user);
+    msg.textContent = 'Profil mis à jour.';
+    msg.style.color = '#27ae60';
+  } catch {
+    msg.textContent = 'Serveur inaccessible.';
+    msg.style.color = '#e74c3c';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── PASSWORD SAVE ──
+document.getElementById('savePasswordBtn').addEventListener('click', async () => {
+  const currentPassword = document.getElementById('currentPassword')?.value || '';
+  const newPassword = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('confirmPassword').value;
+  const msg = document.getElementById('passwordMsg');
+  const btn = document.getElementById('savePasswordBtn');
+
+  if (!currentPassword) {
+    msg.textContent = 'Veuillez entrer votre mot de passe actuel.';
+    msg.style.color = '#e74c3c';
+    msg.style.display = 'block';
+    return;
+  }
+  if (newPassword.length < 10) {
+    msg.textContent = 'Minimum 10 caractères.';
+    msg.style.color = '#e74c3c';
+    msg.style.display = 'block';
+    return;
+  }
+  if (newPassword !== confirm) {
+    msg.textContent = 'Les mots de passe ne correspondent pas.';
+    msg.style.color = '#e74c3c';
+    msg.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.textContent = 'Mise à jour...';
+  msg.style.color = 'var(--color-muted)';
+  msg.style.display = 'block';
+
+  try {
+    const res = await fetch(`${API}/api/auth/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.message || 'Erreur lors de la mise à jour.';
+      msg.style.color = '#e74c3c';
+      return;
+    }
+    msg.textContent = 'Mot de passe mis à jour.';
+    msg.style.color = '#27ae60';
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+  } catch {
+    msg.textContent = 'Serveur inaccessible.';
+    msg.style.color = '#e74c3c';
+  } finally {
+    btn.disabled = false;
+  }
+});
+// ── BOOT ──
+async function boot() {
+  try {
+    const res = await fetch(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) { localStorage.removeItem('client_token'); window.location.href = 'compte.html'; return; }
+    const data = await res.json();
+    user = data.user;
+    localStorage.setItem('client_user', JSON.stringify(user));
+    initUI(user);
+    loadBookings();
+  } catch {
+    if (user) initUI(user);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

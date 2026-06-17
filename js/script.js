@@ -1,26 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
+    let deferredInstallPrompt = null;
+
+    // S'assurer que le showToast est disponible dès le début
+    // (Déplacé conceptuellement en haut ou déclaré en fonction classique pour le hoisting)
+
+    if ('serviceWorker' in navigator) {
+        // Pas besoin d'attendre le 'load' complet s'il est déjà déclenché
+        (async () => {
+            try {
+                await navigator.serviceWorker.register('/service-worker.js');
+                console.log('Service worker enregistré.');
+            } catch (error) {
+                console.warn('Impossible d’enregistrer le service worker.', error);
+            }
+        })();
+    }
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        showToast('IS Beauty peut être installé comme une application mobile. Utilisez le menu du navigateur pour ajouter à l’écran d’accueil.', 'fa-download');
+    });
 
     // 1. FIXED HEADER ON SCROLL
     const header = document.querySelector('header');
 
-    function checkScroll() {
-        if (window.scrollY > 50) {
-            header.classList.add('scrolled');
-        } else {
-            // Only remove scrolled if we are on index.html at the top
-            // For other static pages, we keep it scrolled for visibility
-            const isHomePage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/');
-            if (isHomePage) {
-                header.classList.remove('scrolled');
-            } else {
+    if (header) {
+        function checkScroll() {
+            if (window.scrollY > 50) {
                 header.classList.add('scrolled');
+            } else {
+                const isHomePage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/');
+                if (isHomePage) {
+                    header.classList.remove('scrolled');
+                } else {
+                    header.classList.add('scrolled');
+                }
             }
         }
+        checkScroll();
+        window.addEventListener('scroll', checkScroll);
     }
-
-    // Initial check
-    checkScroll();
-    window.addEventListener('scroll', checkScroll);
 
     // 2. MOBILE BURGER MENU
     const burgerToggle = document.getElementById('burgerToggle');
@@ -35,9 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
             burgerToggle.setAttribute('aria-expanded', String(open));
 
             const lines = burgerToggle.querySelectorAll('.burger-line');
-            lines[0].style.transform = open ? 'rotate(45deg) translate(5px, 5px)' : 'none';
-            lines[1].style.opacity = open ? '0' : '1';
-            lines[2].style.transform = open ? 'rotate(-45deg) translate(6px, -6px)' : 'none';
+            if (lines.length >= 3) {
+                lines[0].style.transform = open ? 'rotate(45deg) translate(5px, 5px)' : 'none';
+                lines[1].style.opacity = open ? '0' : '1';
+                lines[2].style.transform = open ? 'rotate(-45deg) translate(6px, -6px)' : 'none';
+            }
         }
 
         burgerToggle.addEventListener('click', (e) => {
@@ -45,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setMobileMenu(!navMenu.classList.contains('active'));
         });
 
-        // Close menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!navMenu.contains(e.target) && !burgerToggle.contains(e.target)) {
                 setMobileMenu(false);
@@ -73,7 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Close others
                     dropdowns.forEach(other => {
                         if (other !== dropdown) {
                             other.classList.remove('active');
@@ -118,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 5. REVIEWS SLIDER/CAROUSEL (DEMO CONTENT OR VERIFIED REVIEWS)
+    // 5. REVIEWS SLIDER/CAROUSEL
     const carouselInner = document.querySelector('.reviews-carousel-inner');
     const slides = document.querySelectorAll('.review-slide');
     const prevBtn = document.querySelector('.carousel-btn.prev');
@@ -129,7 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentIndex = 0;
         let slideInterval;
 
-        // Create indicator dots dynamically
         slides.forEach((_, idx) => {
             const dot = document.createElement('button');
             dot.type = 'button';
@@ -187,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         carouselInner.addEventListener('focusin', pauseInterval);
         carouselInner.addEventListener('focusout', startInterval);
 
-        // Touch gestures support
         let startX = 0;
         let endX = 0;
 
@@ -211,11 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. TOAST NOTIFICATION UTILITY
     function showToast(message, icon = 'fa-check-circle') {
-        // Remove existing toast if any
         const existingToast = document.querySelector('.toast');
         if (existingToast) existingToast.remove();
 
-        // Create new toast element
         const toast = document.createElement('div');
         toast.className = 'toast';
         toast.setAttribute('role', 'status');
@@ -227,17 +243,89 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.append(toastIcon, toastText);
         document.body.appendChild(toast);
 
-        // Trigger reflow & show
         setTimeout(() => toast.classList.add('show'), 50);
 
-        // Hide and remove after 4 seconds
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 400);
         }, 4000);
     }
 
-    // 7. STATIC BOOKING CALENDAR FOR THE DEMO EXPERIENCE
+    async function getVapidKey() {
+        try {
+            const response = await fetch('/api/notifications/vapid-public-key');
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data.publicKey;
+        } catch (err) {
+            console.warn('Impossible de récupérer la clé VAPID', err);
+            return null;
+        }
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        return new Uint8Array([...rawData].map((char) => char.charCodeAt(0)));
+    }
+
+    async function subscribeUserToPush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission === 'denied') {
+      showToast('Notifications bloquées dans votre navigateur.', 'fa-ban');
+      return;
+    }
+
+    // Attendre que le service worker soit actif
+    const registration = await navigator.serviceWorker.ready;
+
+    // Vérifier qu'il y a bien un service worker actif
+    if (!registration.active) {
+      console.warn('Service worker non actif, notifications push ignorées.');
+      return;
+    }
+
+    const vapidKey = await getVapidKey();
+    if (!vapidKey) return;
+
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) {
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: existing }),
+      });
+      return existing;
+    }
+
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Veuillez autoriser les notifications pour recevoir les confirmations.', 'fa-bell-slash');
+        return null;
+      }
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription }),
+    });
+    showToast('Notifications activées.', 'fa-bell');
+    return subscription;
+  } catch (error) {
+    console.warn('Impossible d\'activer les notifications push:', error.message);
+    return null;
+  }
+}
+
+    // 7. STATIC BOOKING CALENDAR
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
         const calendarMonth = document.getElementById('calendarMonth');
@@ -246,8 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const calendarPrompt = document.getElementById('calendarPrompt');
         const calendarPrev = document.getElementById('calendarPrev');
         const calendarNext = document.getElementById('calendarNext');
-        const selectedDateInput = document.getElementById('bDate');
+        const appointmentDateInput = document.getElementById('bAppointmentDate');
+        const appointmentStartInput = document.getElementById('bAppointmentStart');
+        const appointmentPriceInput = document.getElementById('bPrice');
+        const serviceZoneInput = document.getElementById('bZone');
         const availableSlots = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+        const servicePrices = {
+            bilan: 0, visage: 40, aisselles: 20, maillot: 50, jambes: 30, bras: 28, dos: 50, corps: 150, forfait: 120,
+        };
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const firstDisplayedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -255,9 +349,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let displayedMonth = new Date(firstDisplayedMonth);
         let selectedDay = null;
         let selectedSlot = '';
+        let slotsRequestId = 0;
 
         function formatDate(date, options) {
             return date.toLocaleDateString('fr-FR', options);
+        }
+
+        function formatDateForApi(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getApiBaseUrl() {
+            if (window.location.protocol.startsWith('http')) {
+                return window.location.origin.replace(/\/$/, '');
+            }
+            return 'http://localhost:4000';
         }
 
         function sameDay(firstDate, secondDate) {
@@ -265,12 +374,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function updateSelectedDate() {
-            selectedDateInput.value = selectedDay && selectedSlot
-                ? `${formatDate(selectedDay, { dateStyle: 'long' })} à ${selectedSlot}`
-                : '';
+            appointmentDateInput.value = selectedDay ? formatDateForApi(selectedDay) : '';
+            appointmentStartInput.value = selectedSlot;
+            appointmentPriceInput.value = String(servicePrices[serviceZoneInput.value] ?? 0);
         }
 
-        function renderSlots() {
+        async function getUnavailableSlots(date, serviceZone) {
+            if (!date || !serviceZone) return [];
+            try {
+                const params = new URLSearchParams({
+                    date: formatDateForApi(date),
+                    serviceZone,
+                });
+                const response = await fetch(`${getApiBaseUrl()}/api/bookings/availability?${params.toString()}`, {
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+                if (!response.ok) return [];
+                const data = await response.json();
+                return Array.isArray(data.unavailableSlots) ? data.unavailableSlots : [];
+            } catch (error) {
+                console.warn('Disponibilités non récupérées:', error);
+                return [];
+            }
+        }
+
+        async function renderSlots() {
+            const requestId = ++slotsRequestId;
             calendarSlots.innerHTML = '';
             selectedSlot = '';
             updateSelectedDate();
@@ -280,14 +410,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            calendarPrompt.textContent = `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - choisissez un horaire :`;
+            const serviceZone = serviceZoneInput.value;
+            if (!serviceZone) {
+                calendarPrompt.textContent = 'Choisissez d’abord une zone pour voir les horaires disponibles.';
+                return;
+            }
+
+            calendarPrompt.textContent = 'Chargement des créneaux disponibles...';
+            const unavailableSlots = await getUnavailableSlots(selectedDay, serviceZone);
+            if (requestId !== slotsRequestId) return;
+
+            const availableSlotCount = availableSlots.filter(slot => !unavailableSlots.includes(slot)).length;
+            calendarPrompt.textContent = availableSlotCount > 0
+                ? `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - choisissez un horaire :`
+                : `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - tous les créneaux sont déjà réservés.`;
+
             availableSlots.forEach(slot => {
+                const isUnavailable = unavailableSlots.includes(slot);
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'slot-button';
-                button.textContent = slot;
+                button.disabled = isUnavailable;
                 button.setAttribute('aria-pressed', 'false');
+                if (isUnavailable) {
+                    button.classList.add('unavailable');
+                    button.setAttribute('aria-disabled', 'true');
+                    button.setAttribute('aria-label', `${slot}, déjà réservé`);
+                    button.title = 'Créneau déjà réservé';
+                    button.innerHTML = `<span>${slot}</span><small>Réservé</small>`;
+                } else {
+                    button.textContent = slot;
+                }
                 button.addEventListener('click', () => {
+                    if (button.disabled) return;
                     calendarSlots.querySelectorAll('.slot-button').forEach(item => {
                         item.classList.remove('selected');
                         item.setAttribute('aria-pressed', 'false');
@@ -360,21 +515,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderCalendar();
 
-        bookingForm.addEventListener('submit', (e) => {
+        bookingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!selectedDateInput.value) {
+            if (!selectedDay || !selectedSlot) {
                 showToast('Sélectionnez un jour et un horaire dans le calendrier.', 'fa-calendar-alt');
                 return;
             }
 
-            const chosenAppointment = selectedDateInput.value;
-            bookingForm.reset();
-            selectedDay = null;
-            selectedSlot = '';
-            displayedMonth = new Date(firstDisplayedMonth);
-            renderCalendar();
+            const clientName = document.getElementById('bName').value.trim();
+            const clientEmail = document.getElementById('bEmail').value.trim();
+            const clientPhone = document.getElementById('bPhone').value.trim();
+            const serviceZone = serviceZoneInput.value;
+            const appointmentDate = appointmentDateInput.value;
+            const appointmentStart = appointmentStartInput.value;
+            const price = servicePrices[serviceZone] ?? 0;
+
+            if (!clientName || !clientEmail || !clientPhone || !serviceZone) {
+                showToast('Veuillez remplir tous les champs obligatoires.', 'fa-exclamation-circle');
+                return;
+            }
+
+            appointmentPriceInput.value = String(price);
+
+            const payload = { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart, price };
+            const apiUrl = `${getApiBaseUrl()}/api/bookings`;
+            const submitButton = bookingForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Envoi en cours…';
+            }
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(data.message || 'Erreur lors de l’envoi. Réessayez.', 'fa-times-circle');
+                    if (response.status === 409) renderSlots();
+                    return;
+                }
+
+                bookingForm.reset();
+                selectedDay = null;
+                selectedSlot = '';
+                displayedMonth = new Date(firstDisplayedMonth);
+                renderCalendar();
+                renderSlots();
+                try {
+                    await subscribeUserToPush();
+                } catch (pushError) {
+                    console.warn('Erreur lors de la souscription aux notifications:', pushError);
+                }
+                showToast('Réservation confirmée. À bientôt chez IS Beauty !', 'fa-calendar-check');
+            } catch (error) {
+                showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 'fa-times-circle');
+                console.error(error);
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Valider mon créneau';
+                }
+            }
+        });
+
+        serviceZoneInput.addEventListener('change', () => {
+            updateSelectedDate();
             renderSlots();
-            showToast(`Démo : demande validée pour le ${chosenAppointment}. Aucun envoi réel.`, 'fa-calendar-check');
         });
     }
 
@@ -424,38 +634,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function renderLoyaltyDemo() {
             const statusName = getStatusName(eclats);
-            displayedName.textContent = firstName;
-            count.textContent = String(eclats);
-            status.textContent = statusName;
-            progress.style.width = `${Math.min(eclats, 12) / 12 * 100}%`;
-            progressbar.setAttribute('aria-valuenow', String(eclats));
+            if (displayedName) displayedName.textContent = firstName;
+            if (count) count.textContent = String(eclats);
+            if (status) status.textContent = statusName;
+            if (progress) progress.style.width = `${Math.min(eclats, 12) / 12 * 100}%`;
+            if (progressbar) progressbar.setAttribute('aria-valuenow', String(eclats));
 
-            if (eclats >= 12) {
-                nextStatus.textContent = 'Signature atteinte';
-                reward.textContent = 'Privilège Signature disponible';
-                message.textContent = 'Statut Constellation atteint : votre privilège Signature est disponible.';
-            } else if (eclats >= 9) {
-                nextStatus.textContent = `Constellation à 12`;
-                reward.textContent = 'Privilège Signature à 12 Éclats';
-                const remaining = 12 - eclats;
-                message.textContent = `Duo Lumière débloqué. Encore ${remaining} ${eclatLabel(remaining)} avant le statut Constellation.`;
-            } else if (eclats >= 8) {
-                nextStatus.textContent = 'Constellation à 12';
-                reward.textContent = 'Duo Lumière à 9 Éclats';
-                message.textContent = 'Bienvenue dans le statut Aura. Encore 1 Éclat avant Duo Lumière.';
-            } else if (eclats >= 6) {
-                nextStatus.textContent = 'Aura à 8';
-                reward.textContent = 'Duo Lumière à 9 Éclats';
-                const remaining = 8 - eclats;
-                message.textContent = `Bonus Douceur débloqué. Encore ${remaining} ${eclatLabel(remaining)} avant le statut Aura.`;
-            } else if (eclats >= 3) {
-                nextStatus.textContent = 'Halo à 4';
-                reward.textContent = 'Bonus Douceur à 6 Éclats';
-                message.textContent = 'Instant Conseil débloqué. Votre prochain statut se rapproche.';
-            } else {
-                nextStatus.textContent = 'Halo à 4';
-                reward.textContent = 'Instant Conseil à 3 Éclats';
-                message.textContent = 'Votre constellation commence à prendre forme.';
+            if (message && reward && nextStatus) {
+                if (eclats >= 12) {
+                    nextStatus.textContent = 'Signature atteinte';
+                    reward.textContent = 'Privilège Signature disponible';
+                    message.textContent = 'Statut Constellation atteint : votre privilège Signature est disponible.';
+                } else if (eclats >= 9) {
+                    nextStatus.textContent = `Constellation à 12`;
+                    reward.textContent = 'Privilège Signature à 12 Éclats';
+                    const remaining = 12 - eclats;
+                    message.textContent = `Duo Lumière débloqué. Encore ${remaining} ${eclatLabel(remaining)} avant le statut Constellation.`;
+                } else if (eclats >= 8) {
+                    nextStatus.textContent = 'Constellation à 12';
+                    reward.textContent = 'Duo Lumière à 9 Éclats';
+                    message.textContent = 'Bienvenue dans le statut Aura. Encore 1 Éclat avant Duo Lumière.';
+                } else if (eclats >= 6) {
+                    nextStatus.textContent = 'Aura à 8';
+                    reward.textContent = 'Duo Lumière à 9 Éclats';
+                    const remaining = 8 - eclats;
+                    message.textContent = `Bonus Douceur débloqué. Encore ${remaining} ${eclatLabel(remaining)} avant le statut Aura.`;
+                } else if (eclats >= 3) {
+                    nextStatus.textContent = 'Halo à 4';
+                    reward.textContent = 'Bonus Douceur à 6 Éclats';
+                    message.textContent = 'Instant Conseil débloqué. Votre prochain statut se rapproche.';
+                } else {
+                    nextStatus.textContent = 'Halo à 4';
+                    reward.textContent = 'Instant Conseil à 3 Éclats';
+                    message.textContent = 'Votre constellation commence à prendre forme.';
+                }
             }
 
             points.forEach((point, index) => {
@@ -463,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 point.classList.toggle('earned', earned);
                 if (!point.classList.contains('reward')) {
                     const icon = point.querySelector('i');
-                    icon.className = earned ? 'fas fa-star' : 'far fa-star';
+                    if (icon) icon.className = earned ? 'fas fa-star' : 'far fa-star';
                 }
             });
 
@@ -475,7 +687,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const threshold = Number(milestone.dataset.rewardThreshold);
                 milestone.classList.toggle('unlocked', eclats >= threshold);
             });
-
         }
 
         form.addEventListener('submit', (e) => {
@@ -501,21 +712,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryItems = document.querySelectorAll('.gallery-item');
 
     if (galleryItems.length > 0) {
-        // Collect all images details on the current page
         const imagesList = Array.from(galleryItems).map(item => {
             const img = item.querySelector('img');
             const caption = item.querySelector('h4');
             return {
-                src: img.src,
-                alt: img.alt,
-                title: caption ? caption.textContent : img.alt
+                src: img ? img.src : '',
+                alt: img ? img.alt : '',
+                title: caption ? caption.textContent : (img ? img.alt : '')
             };
         });
 
         let activeIndex = 0;
         let previouslyFocusedElement = null;
 
-        // Dynamically create Lightbox element if it doesn't exist
         let lightbox = document.querySelector('.lightbox');
         if (!lightbox) {
             lightbox = document.createElement('div');
@@ -539,82 +748,118 @@ document.addEventListener('DOMContentLoaded', () => {
         const lightboxImg = lightbox.querySelector('.lightbox-img');
         const lightboxCaption = lightbox.querySelector('.lightbox-caption');
         const closeBtn = lightbox.querySelector('.lightbox-close');
-        const nextNav = lightbox.querySelector('.lightbox-nav.next');
-        const prevNav = lightbox.querySelector('.lightbox-nav.prev');
+        const prevBtnLightbox = lightbox.querySelector('.lightbox-nav.prev');
+        const nextBtnLightbox = lightbox.querySelector('.lightbox-nav.next');
 
         function openLightbox(index) {
             activeIndex = index;
             previouslyFocusedElement = document.activeElement;
-            updateLightboxContent();
-            lightbox.classList.add('active');
+            updateLightbox();
             lightbox.setAttribute('aria-hidden', 'false');
-            document.body.style.overflow = 'hidden'; // Lock background scroll
+            lightbox.classList.add('active');
             closeBtn.focus();
         }
 
         function closeLightbox() {
-            lightbox.classList.remove('active');
             lightbox.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
+            lightbox.classList.remove('active');
             if (previouslyFocusedElement) previouslyFocusedElement.focus();
         }
 
-        function updateLightboxContent() {
-            const item = imagesList[activeIndex];
-            if (item) {
-                lightboxImg.src = item.src;
-                lightboxImg.alt = item.alt;
-                lightboxCaption.textContent = item.title;
+        function updateLightbox() {
+            const currentImg = imagesList[activeIndex];
+            if (lightboxImg && currentImg) {
+                lightboxImg.src = currentImg.src;
+                lightboxImg.alt = currentImg.alt;
+            }
+            if (lightboxCaption && currentImg) {
+                lightboxCaption.textContent = currentImg.title;
             }
         }
 
-        function showNext() {
+        function nextImage() {
             activeIndex = (activeIndex + 1) % imagesList.length;
-            updateLightboxContent();
+            updateLightbox();
         }
 
-        function showPrev() {
+        function prevImage() {
             activeIndex = (activeIndex - 1 + imagesList.length) % imagesList.length;
-            updateLightboxContent();
+            updateLightbox();
         }
 
-        // Attach click handlers to items
-        galleryItems.forEach((item, idx) => {
-            const label = imagesList[idx].title;
-            item.setAttribute('role', 'button');
-            item.setAttribute('tabindex', '0');
-            item.setAttribute('aria-label', `Agrandir : ${label}`);
-            item.addEventListener('click', () => {
-                openLightbox(idx);
-            });
-            item.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    openLightbox(idx);
-                }
+        galleryItems.forEach((item, index) => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                openLightbox(index);
             });
         });
 
-        // Controls
-        closeBtn.addEventListener('click', closeLightbox);
-        nextNav.addEventListener('click', showNext);
-        prevNav.addEventListener('click', showPrev);
+        if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
+        if (prevBtnLightbox) prevBtnLightbox.addEventListener('click', prevImage);
+        if (nextBtnLightbox) nextBtnLightbox.addEventListener('click', nextImage);
 
-        // Click outside closes lightbox
         lightbox.addEventListener('click', (e) => {
             if (e.target === lightbox || e.target.classList.contains('lightbox-content')) {
                 closeLightbox();
             }
         });
 
-        // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (!lightbox.classList.contains('active')) return;
-
             if (e.key === 'Escape') closeLightbox();
-            if (e.key === 'ArrowRight') showNext();
-            if (e.key === 'ArrowLeft') showPrev();
+            if (e.key === 'ArrowRight') nextImage();
+            if (e.key === 'ArrowLeft') prevImage();
         });
     }
+    // 10. HEADER — BOUTON MON ESPACE
+(function initAuthNav() {
+    const navMenu = document.getElementById('navMenu');
+    const ul = navMenu?.querySelector('ul');
+    if (!ul) return;
 
+    const token = localStorage.getItem('client_token');
+    const user = JSON.parse(localStorage.getItem('client_user') || 'null');
+
+const li = document.createElement('li');
+li.className = 'nav-item-profile'; 
+li.style.display = 'flex';
+li.style.alignItems = 'center';
+li.style.marginLeft = 'auto'; // 🌟 Magie du CSS : pousse le bouton tout à droite de la barre !
+li.style.paddingLeft = '20px';
+
+if (token && user) {
+  const initials = (user.name || 'M').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const firstName = user.name.split(' ')[0];
+  
+  li.innerHTML = `
+    <a href="espace-client.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: rgba(26, 236, 255, 0.05); border: 1px solid rgba(26, 236, 255, 0.2); border-radius: 50px; text-decoration: none; transition: all 0.3s ease;">
+      <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-cyan); color: #070b10; font-size: 11px; font-weight: 700; flex-shrink: 0; box-shadow: 0 0 10px rgba(26, 236, 255, 0.3);">
+        ${initials}
+      </span>
+      <div style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
+        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--color-muted);">Mon Compte</span>
+        <span style="font-size: 13px; font-weight: 600; color: #fff; text-transform: capitalize;">${firstName.toLowerCase()}</span>
+      </div>
+    </a>`;
+} else {
+  // Version déconnectée assortie
+  li.innerHTML = `
+    <a href="compte.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--color-cyan); color: #070b10; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 15px rgba(26, 236, 255, 0.2);">
+      <i class="fas fa-user"></i> Connexion
+    </a>`;
+}
+
+ul.appendChild(li);
+})();
+// 11. PRÉ-REMPLISSAGE FORMULAIRE RDV SI CONNECTÉ
+(function prefillBookingForm() {
+    const user = JSON.parse(localStorage.getItem('client_user') || 'null');
+    if (!user) return;
+
+    const nameField = document.getElementById('bName');
+    const emailField = document.getElementById('bEmail');
+
+    if (nameField && !nameField.value) nameField.value = user.name || '';
+    if (emailField && !emailField.value) emailField.value = user.email || '';
+})();
 });

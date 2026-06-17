@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Compte — IS Beauty</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── AUTH PAGE ── */
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auth-topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: rgba(7, 11, 20, 0.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(26, 236, 255, 0.08);
+    }
+
+    .auth-topbar-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      transition: var(--transition-fast);
+    }
+
+    .auth-topbar-back:hover { color: var(--color-cyan); }
+
+    .auth-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 24px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-main::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 40%, rgba(26, 236, 255, 0.07) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 60%, rgba(201, 174, 255, 0.05) 0%, transparent 40%);
+      pointer-events: none;
+    }
+
+    .auth-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+    }
+
+    /* TABS */
+    .auth-switcher {
+      display: flex;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(26, 236, 255, 0.1);
+      border-radius: 50px;
+      padding: 4px;
+      margin-bottom: 1.75rem;
+      gap: 4px;
+    }
+
+    .auth-switcher button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 50px;
+      background: none;
+      color: var(--color-muted);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .auth-switcher button.active {
+      background: var(--color-cyan);
+      color: var(--color-bg);
+      box-shadow: 0 0 20px rgba(26, 236, 255, 0.25);
+    }
+
+    /* CARD */
+    .auth-card {
+      background: rgba(12, 19, 32, 0.95);
+      border: 1px solid rgba(26, 236, 255, 0.12);
+      border-radius: 16px;
+      padding: 2.25rem 2rem;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(26, 236, 255, 0.04) inset;
+    }
+
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+
+    .auth-heading {
+      font-family: var(--font-heading);
+      font-size: 1.65rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.3px;
+    }
+
+    .auth-sub {
+      color: var(--color-muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.75rem;
+      line-height: 1.5;
+    }
+
+    /* FIELDS */
+    .field {
+      margin-bottom: 1.1rem;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(182, 244, 255, 0.6);
+      margin-bottom: 7px;
+    }
+
+    .field-wrap {
+      position: relative;
+    }
+
+    .field-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(116, 136, 163, 0.7);
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .field-input {
+      width: 100%;
+      background: rgba(26, 236, 255, 0.03);
+      border: 1px solid rgba(182, 244, 255, 0.1);
+      border-radius: 10px;
+      padding: 13px 14px 13px 40px;
+      color: #e8f4ff;
+      font-family: var(--font-body);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .field-input::placeholder {
+      color: rgba(116, 136, 163, 0.5);
+    }
+
+    .field-input:focus {
+      border-color: var(--color-cyan);
+      background: rgba(26, 236, 255, 0.05);
+      box-shadow: 0 0 0 3px rgba(26, 236, 255, 0.1);
+    }
+
+    /* PASSWORD STRENGTH */
+    .strength-track {
+      height: 3px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .strength-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 4px;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    .strength-label {
+      font-size: 11px;
+      color: var(--color-muted);
+      margin-top: 5px;
+    }
+
+    /* CONSENT */
+    .consent-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 1.1rem 0;
+    }
+
+    .consent-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--color-cyan);
+      flex-shrink: 0;
+    }
+
+    .consent-row label {
+      font-size: 12px;
+      color: var(--color-muted);
+      line-height: 1.55;
+    }
+
+    .consent-row a { color: var(--color-cyan); }
+
+    /* SUBMIT BTN */
+    .auth-submit {
+      width: 100%;
+      padding: 14px;
+      margin-top: 0.25rem;
+      background: var(--color-cyan);
+      color: var(--color-bg);
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .auth-submit:hover:not(:disabled) {
+      background: var(--color-cyan-hover);
+      box-shadow: 0 8px 24px rgba(26, 236, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .auth-submit:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* MESSAGES */
+    .msg {
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 13px;
+      margin-bottom: 1rem;
+      display: none;
+      line-height: 1.5;
+    }
+
+    .msg.show { display: block; }
+    .msg-error { background: rgba(192,57,43,0.12); border: 1px solid rgba(192,57,43,0.3); color: #e95b4e; }
+    .msg-success { background: rgba(39,174,96,0.12); border: 1px solid rgba(39,174,96,0.3); color: #2ecc71; }
+
+    /* SWITCH LINK */
+    .auth-switch {
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: 13px;
+      color: var(--color-muted);
+    }
+
+    .auth-switch a {
+      color: var(--color-cyan);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .auth-switch a:hover { text-decoration: underline; }
+
+    /* LOYALTY TEASER */
+    .loyalty-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 1.5rem;
+      padding: 14px 16px;
+      background: rgba(26, 236, 255, 0.05);
+      border: 1px solid rgba(26, 236, 255, 0.12);
+      border-radius: 12px;
+    }
+
+    .loyalty-pill-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(26, 236, 255, 0.1);
+      border: 1px solid rgba(26, 236, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-cyan);
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .loyalty-pill p {
+      font-size: 12px;
+      color: var(--color-muted);
+      line-height: 1.5;
+    }
+
+    .loyalty-pill strong { color: var(--color-cyan); }
+
+    @media (max-width: 480px) {
+      .auth-card { padding: 1.5rem; }
+      .auth-topbar { padding: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- TOPBAR -->
+  <div class="auth-topbar">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">IS</span>
+      <span class="logo-wording">
+        <strong>Beauty</strong>
+        <small>Laser Ice</small>
+      </span>
+    </a>
+    <a href="index.html" class="auth-topbar-back">
+      <i class="fas fa-arrow-left"></i> Retour au site
+    </a>
+  </div>
+
+  <!-- MAIN -->
+  <main class="auth-main">
+    <div class="auth-wrap">
+
+      <!-- SWITCHER -->
+      <div class="auth-switcher">
+        <button class="active" id="tabLogin">Connexion</button>
+        <button id="tabRegister">Créer un compte</button>
+      </div>
+
+      <div class="auth-card">
+
+        <!-- CONNEXION -->
+        <div class="auth-panel active" id="panelLogin">
+          <h1 class="auth-heading">Bon retour ✦</h1>
+          <p class="auth-sub">Accédez à votre espace beauté et programme fidélité.</p>
+
+          <div class="msg msg-error" id="loginError"></div>
+
+          <div class="field">
+            <label class="field-label">Email</label>
+            <div class="field-wrap">
+              <i class="fas fa-envelope field-icon"></i>
+              <input type="email" class="field-input" id="loginEmail" placeholder="votre@email.fr" autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Mot de passe</label>
+            <div class="field-wrap">
+              <i class="fas fa-lock field-icon"></i>
+              <input type="password" class="field-input" id="loginPassword" placeholder="••••••••••" autocomplete="current-password" />
+            </div>
+          </div>
+
+              <div style="text-align:right;margin-bottom:1rem">
+  <a href="reset-password.html" style="font-size:12px;color:var(--color-cyan)">Mot de passe oublié ?</a>
+</div>
+
+          <button class="auth-submit" id="loginBtn">Se connecter</button>
+
+          <div class="auth-switch">
+            Pas encore membre ? <a href="#" id="switchToRegister">Créer mon espace</a>
+          </div>
+
+          <div class="loyalty-pill">
+            <div class="loyalty-pill-icon"><i class="fas fa-star"></i></div>
+            <p>Accédez à vos <strong>points fidélité</strong>, vos RDV et vos avantages exclusifs.</p>
+          </div>
+        </div>
+
+        <!-- INSCRIPTION -->
+        <div class="auth-panel" id="panelRegister">
+          <h1 class="auth-heading">Rejoindre IS Beauty ✦</h1>
+          <p class="auth-sub">Créez votre espace et rejoignez le programme de fidélité.</p>
+
+          <div class="msg msg-error" id="registerError"></div>
+          <div class="msg msg-success" id="registerSuccess"></div>
+
+          <div class="field">
+            <label class="field-label">Prénom & Nom</label>
+            <div class="field-wrap">
+              <i class="fas fa-user field-icon"></i>
+              <input type="text" class="field-input" id="registerName" placeholder="Marie Dupont" autocomplete="name" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Email</label>
+            <div class="field-wrap">
+              <i class="fas fa-envelope field-icon"></i>
+              <input type="email" class="field-input" id="registerEmail" placeholder="votre@email.fr" autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Mot de passe</label>
+            <div class="field-wrap">
+              <i class="fas fa-lock field-icon"></i>
+              <input type="password" class="field-input" id="registerPassword" placeholder="10 caractères minimum" autocomplete="new-password" />
+            </div>
+            <div class="strength-track"><div class="strength-fill" id="strengthBar"></div></div>
+            <p class="strength-label" id="strengthLabel">Minimum 10 caractères</p>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Confirmer le mot de passe</label>
+            <div class="field-wrap">
+              <i class="fas fa-lock field-icon"></i>
+              <input type="password" class="field-input" id="registerConfirm" placeholder="••••••••••" autocomplete="new-password" />
+            </div>
+          </div>
+
+          <div class="consent-row">
+            <input type="checkbox" id="registerConsent" />
+            <label for="registerConsent">
+              J'accepte les <a href="confidentialite.html">conditions de confidentialité</a> et l'utilisation de mes données personnelles.
+            </label>
+          </div>
+
+          <button class="auth-submit" id="registerBtn">Créer mon compte</button>
+
+          <div class="auth-switch">
+            Déjà membre ? <a href="#" id="switchToLogin">Me connecter</a>
+          </div>
+
+          <div class="loyalty-pill">
+            <div class="loyalty-pill-icon"><i class="fas fa-gem"></i></div>
+            <p>Chaque séance vous rapporte des <strong>Éclats</strong>. Soins offerts, réductions et privilèges exclusifs à la clé.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = '';
+
+// ── TABS ──
+document.getElementById('tabLogin').addEventListener('click', () => switchTab('login'));
+document.getElementById('tabRegister').addEventListener('click', () => switchTab('register'));
+document.getElementById('switchToRegister').addEventListener('click', e => { e.preventDefault(); switchTab('register'); });
+document.getElementById('switchToLogin').addEventListener('click', e => { e.preventDefault(); switchTab('login'); });
+
+function switchTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
+}
+
+// ── PASSWORD STRENGTH ──
+document.getElementById('registerPassword').addEventListener('input', function() {
+  const v = this.value;
+  const bar = document.getElementById('strengthBar');
+  const label = document.getElementById('strengthLabel');
+  let s = 0;
+  if (v.length >= 10) s++;
+  if (/[A-Z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  const colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71'];
+  const labels = ['Trop court','Faible','Moyen','Fort ✓'];
+  if (!v) { bar.style.width='0'; label.textContent='Minimum 10 caractères'; label.style.color=''; return; }
+  const i = Math.max(0, s - 1);
+  bar.style.width = ['25%','50%','75%','100%'][i];
+  bar.style.background = colors[i];
+  label.textContent = labels[i];
+  label.style.color = colors[i];
+});
+
+// ── LOGIN ──
+document.getElementById('loginBtn').addEventListener('click', login);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  err.className = 'msg msg-error';
+  if (!email || !password) { err.textContent = 'Veuillez remplir tous les champs.'; err.className += ' show'; return; }
+  btn.disabled = true; btn.textContent = 'Connexion...';
+  try {
+    const res = await fetch(`${API}/api/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.message || 'Identifiants invalides.'; err.className += ' show'; return; }
+    localStorage.setItem('client_token', data.token);
+    localStorage.setItem('client_user', JSON.stringify(data.user));
+    window.location.href = 'espace-client.html';
+  } catch { err.textContent = 'Serveur inaccessible.'; err.className += ' show'; }
+  finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
+}
+
+// ── REGISTER ──
+document.getElementById('registerBtn').addEventListener('click', register);
+
+async function register() {
+  const name = document.getElementById('registerName').value.trim();
+  const email = document.getElementById('registerEmail').value.trim();
+  const password = document.getElementById('registerPassword').value;
+  const confirm = document.getElementById('registerConfirm').value;
+  const consent = document.getElementById('registerConsent').checked;
+  const btn = document.getElementById('registerBtn');
+  const err = document.getElementById('registerError');
+  const ok = document.getElementById('registerSuccess');
+  err.className = 'msg msg-error'; ok.className = 'msg msg-success';
+
+  if (!name || !email || !password || !confirm) { err.textContent = 'Veuillez remplir tous les champs.'; err.className += ' show'; return; }
+  if (password.length < 10) { err.textContent = 'Le mot de passe doit contenir au moins 10 caractères.'; err.className += ' show'; return; }
+  if (password !== confirm) { err.textContent = 'Les mots de passe ne correspondent pas.'; err.className += ' show'; return; }
+  if (!consent) { err.textContent = 'Veuillez accepter les conditions de confidentialité.'; err.className += ' show'; return; }
+
+  btn.disabled = true; btn.textContent = 'Création en cours...';
+  try {
+    const res = await fetch(`${API}/api/auth/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password, name}) });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.message || data.errors?.[0]?.msg || 'Erreur.'; err.className += ' show'; return; }
+    ok.textContent = 'Compte créé ! Connexion automatique...'; ok.className += ' show';
+    setTimeout(async () => {
+      const r = await fetch(`${API}/api/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+      const d = await r.json();
+      if (d.token) { localStorage.setItem('client_token', d.token); localStorage.setItem('client_user', JSON.stringify(d.user)); window.location.href = 'espace-client.html'; }
+    }, 1200);
+  } catch { err.textContent = 'Serveur inaccessible.'; err.className += ' show'; }
+  finally { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
+}
+
+// Auto-redirect si déjà connecté
+const t = localStorage.getItem('client_token');
+if (t) fetch(`${API}/api/auth/me`, {headers:{Authorization:`Bearer ${t}`}}).then(r => { if (r.ok) window.location.href = 'espace-client.html'; }).catch(()=>{});
+</script>
+</body>
+</html>
