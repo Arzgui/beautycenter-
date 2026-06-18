@@ -1,0 +1,75 @@
+name: Deploy IS Beauty
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Create .env for tests
+        working-directory: backend
+        run: |
+          cat <<EOF > .env
+          PORT=4000
+          DATABASE_FILE=./database.sqlite
+          JWT_SECRET=test_secret_for_ci_only
+          JWT_EXPIRES_IN=1h
+          CORS_ORIGINS=http://localhost:4000,http://localhost:3000
+          VAPID_PUBLIC_KEY=BJtest_public_key_placeholder_for_ci
+          VAPID_PRIVATE_KEY=test_private_key_placeholder_for_ci
+          VAPID_SUBJECT=mailto:test@isbeauty.local
+          TWILIO_ACCOUNT_SID=ACtestplaceholder
+          TWILIO_AUTH_TOKEN=test_auth_token
+          TWILIO_PHONE_NUMBER=+10000000000
+          BREVO_API_KEY=test_brevo_api_key
+          BREVO_SENDER_EMAIL=test@isbeauty.local
+          BREVO_SENDER_NAME=IS Beauty Test
+          BREVO_SMS_SENDER=ISBeautyTest
+          ONESIGNAL_APP_ID=test_onesignal_app_id
+          ONESIGNAL_API_KEY=test_onesignal_api_key
+          AIRTABLE_API_KEY=test_airtable_api_key
+          AIRTABLE_BASE_ID=test_airtable_base_id
+          AIRTABLE_TABLE_NAME=Customers
+          EOF
+
+      - name: Run tests
+        working-directory: backend
+        run: npm test
+
+  deploy:
+    name: Deploy to VPS
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/isbeauty/backend
+            git pull origin main
+            npm install
+            pm2 restart isbeauty
