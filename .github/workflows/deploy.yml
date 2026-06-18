@@ -34,8 +34,8 @@ jobs:
           JWT_SECRET=test_secret_for_ci_only
           JWT_EXPIRES_IN=1h
           CORS_ORIGINS=http://localhost:4000,http://localhost:3000
-          VAPID_PUBLIC_KEY=BJtest_public_key_placeholder_for_ci
-          VAPID_PRIVATE_KEY=test_private_key_placeholder_for_ci
+          VAPID_PUBLIC_KEY=BMCd9NtyKa4zWz1U3-XVj-YYfrocIkNK-x7OyN60KMLhpQ4TMM1NoMUFXKtFyq7zCyHLohuJbtmf-a-mDJ2H73g
+          VAPID_PRIVATE_KEY=ZceS0jIKL1GreuBpHiJWT0dHHZdxvdPQu3p2nDko7og
           VAPID_SUBJECT=mailto:test@isbeauty.local
           TWILIO_ACCOUNT_SID=ACtestplaceholder
           TWILIO_AUTH_TOKEN=test_auth_token
