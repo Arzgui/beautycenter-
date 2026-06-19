@@ -42,7 +42,7 @@ export async function initializeDatabase() {
       createdAt TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS bookings (
+   CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
       userId TEXT,
       clientName TEXT NOT NULL,
@@ -58,6 +58,10 @@ export async function initializeDatabase() {
       pointsEarned INTEGER DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT,
+      reminderSentAt TEXT,
+      cancellationToken TEXT,
+      cancelledAt TEXT,
+      cancelledBy TEXT,
       FOREIGN KEY(userId) REFERENCES users(id)
     );
 
@@ -87,7 +91,7 @@ export async function initializeDatabase() {
       updatedAt TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS password_resets (
+CREATE TABLE IF NOT EXISTS password_resets (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
   token TEXT NOT NULL,
@@ -95,4 +99,21 @@ export async function initializeDatabase() {
   createdAt TEXT NOT NULL
 );
   `);
+
+  // Migration : colonnes pour les rappels J-1 et l'annulation par le client
+  const bookingColumns = await db.all("PRAGMA table_info(bookings);");
+  const columnNames = bookingColumns.map((col) => col.name);
+
+  if (!columnNames.includes('reminderSentAt')) {
+    await db.exec('ALTER TABLE bookings ADD COLUMN reminderSentAt TEXT;');
+  }
+  if (!columnNames.includes('cancellationToken')) {
+    await db.exec('ALTER TABLE bookings ADD COLUMN cancellationToken TEXT;');
+  }
+  if (!columnNames.includes('cancelledAt')) {
+    await db.exec('ALTER TABLE bookings ADD COLUMN cancelledAt TEXT;');
+  }
+  if (!columnNames.includes('cancelledBy')) {
+    await db.exec('ALTER TABLE bookings ADD COLUMN cancelledBy TEXT;');
+  };
 }

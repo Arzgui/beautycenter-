@@ -17,6 +17,9 @@ import { initializeDatabase } from './config/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { verifyToken, verifyAdmin } from './middleware/auth.js';
 import invitationsAdminRoutes from './routes/admin/invitations.js';
+import invitationsAdminRoutes from './routes/admin/invitations.js';
+import invitationsAdminRoutes from './routes/admin/invitations.js';
+import { startReminderScheduler } from './utils/reminders.js';
 
 
 // Configuration des variables d'environnement
@@ -159,6 +162,9 @@ app.use(limiter);
 
 // Initialisation de la base de données
 await initializeDatabase();
+
+// Démarrage du planificateur de rappels J-1
+startReminderScheduler();
 
 // Déclaration des routes de l'API
 app.use('/api/auth', authRoutes);

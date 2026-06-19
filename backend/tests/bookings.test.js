@@ -88,6 +88,65 @@ describe('Bookings API', () => {
       .query({ date: appointmentDate, serviceZone: 'visage' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.body.unavailableSlots).toContain('10:30');
+   expect(response.body.unavailableSlots).toContain('10:30');
+  });
+});
+
+describe('Annulation de reservation', () => {
+  async function createBooking(appointmentDate) {
+    await db.run('DELETE FROM bookings WHERE appointmentDate = ?', appointmentDate);
+    await request(app).post('/api/bookings').send({
+      clientName: 'Client Annulation',
+      clientEmail: 'annulation@isbeauty.local',
+      clientPhone: '+33000000099',
+      serviceZone: 'aisselles',
+      appointmentDate,
+      appointmentStart: '11:00',
+      price: 20,
+    });
+    return db.get('SELECT * FROM bookings WHERE appointmentDate = ? AND clientEmail = ?', appointmentDate, 'annulation@isbeauty.local');
+  }
+
+  it('devrait annuler une reservation avec un token valide', async () => {
+    const appointmentDate = futureWeekday(35);
+    const booking = await createBooking(appointmentDate);
+    expect(booking.cancellationToken).toBeTruthy();
+
+    const response = await request(app)
+      .post('/api/bookings/cancel')
+      .send({ token: booking.cancellationToken });
+
+    expect(response.statusCode).toBe(200);
+
+    const updated = await db.get('SELECT * FROM bookings WHERE id = ?', booking.id);
+    expect(updated.status).toBe('cancelled');
+    expect(updated.cancelledBy).toBe('client');
+    expect(updated.cancelledAt).toBeTruthy();
+  });
+
+  it('devrait refuser un token invalide', async () => {
+    const response = await request(app)
+      .post('/api/bookings/cancel')
+      .send({ token: 'pas-un-uuid' });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('devrait renvoyer 404 pour un token inconnu', async () => {
+    const response = await request(app)
+      .post('/api/bookings/cancel')
+      .send({ token: '11111111-1111-1111-1111-111111111111' });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('devrait renvoyer 409 si la reservation est deja annulee', async () => {
+    const appointmentDate = futureWeekday(42);
+    const booking = await createBooking(appointmentDate);
+
+    await request(app).post('/api/bookings/cancel').send({ token: booking.cancellationToken });
+    const response = await request(app).post('/api/bookings/cancel').send({ token: booking.cancellationToken });
+
+    expect(response.statusCode).toBe(409);
   });
 });

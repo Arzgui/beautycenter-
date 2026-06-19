@@ -149,7 +149,7 @@ router.post(
       const existing = await findOverlappingBooking(appointmentDateISO, startMinutes, endMinutes);
       if (existing) return res.status(409).json({ message: 'Ce créneau est déjà réservé.' });
 
-      const serviceType = service.label;
+     const serviceType = service.label;
       const appointmentEnd = formatTime(endMinutes);
       const id = uuidv4();
       const createdAt = new Date().toISOString();
@@ -185,17 +185,18 @@ router.post(
         await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
       }
 
+      const cancelUrl = `${process.env.SITE_URL || 'http://localhost:4000'}/annuler.html?token=${cancellationToken}`;
+
       try {
         await sendBrevoEmail(
           clientEmail,
           'Confirmation de rendez-vous IS Beauty',
-          `<p>Bonjour ${clientName},</p><p>Votre rendez-vous pour <strong>${serviceType}</strong> est confirmé le <strong>${appointmentDateISO}</strong> à <strong>${appointmentStart}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p>`,
-          `Bonjour ${clientName},\nVotre rendez-vous pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.\nMerci de votre confiance, à bientôt chez IS Beauty.`
+          `<p>Bonjour ${clientName},</p><p>Votre rendez-vous pour <strong>${serviceType}</strong> est confirmé le <strong>${appointmentDateISO}</strong> à <strong>${appointmentStart}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p><p style="margin-top:24px;font-size:13px;color:#7488A3">Un empêchement ? <a href="${cancelUrl}">Annuler ce rendez-vous</a>.</p>`,
+          `Bonjour ${clientName},\nVotre rendez-vous pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.\nMerci de votre confiance, à bientôt chez IS Beauty.\nUn empêchement ? Annuler ce rendez-vous : ${cancelUrl}`
         );
       } catch (emailError) {
         console.warn('Erreur Brevo email:', emailError.message || emailError);
       }
-
       try {
         await broadcastPushNotification(
           'Rendez-vous confirmé',
@@ -221,6 +222,50 @@ router.get('/', verifyToken, async (req, res, next) => {
   }
 });
 
+router.post(
+  '/cancel',
+  body('token').isUUID(),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
+      const { token } = req.body;
+      const booking = await db.get('SELECT * FROM bookings WHERE cancellationToken = ?', token);
+
+      if (!booking) {
+        return res.status(404).json({ message: 'Réservation introuvable.' });
+      }
+
+      if (booking.status === 'cancelled') {
+        return res.status(409).json({ message: 'Ce rendez-vous est déjà annulé.' });
+      }
+
+      const cancelledAt = new Date().toISOString();
+      await db.run(
+        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ?",
+        cancelledAt,
+        cancelledAt,
+        booking.id
+      );
+
+      try {
+        await sendBrevoEmail(
+          booking.clientEmail,
+          'Annulation de votre rendez-vous IS Beauty',
+          `<p>Bonjour ${booking.clientName},</p><p>Votre rendez-vous du <strong>${booking.appointmentDate}</strong> à <strong>${booking.appointmentStart}</strong> a bien été annulé.</p><p>Vous pouvez réserver un nouveau créneau à tout moment sur notre site.</p>`,
+          `Bonjour ${booking.clientName},\nVotre rendez-vous du ${booking.appointmentDate} à ${booking.appointmentStart} a bien été annulé.\nVous pouvez réserver un nouveau créneau à tout moment sur notre site.`
+        );
+      } catch (emailError) {
+        console.warn('Erreur Brevo email (annulation):', emailError.message || emailError);
+      }
+
+      res.json({ message: 'Rendez-vous annulé avec succès.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;
+
