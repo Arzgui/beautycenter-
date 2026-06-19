@@ -154,9 +154,10 @@ router.post(
       const id = uuidv4();
       const createdAt = new Date().toISOString();
       const pointsEarned = Math.floor(price / 10);
+      const cancellationToken = uuidv4();
 
       await db.run(
-        'INSERT INTO bookings (id, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO bookings (id, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt, cancellationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         id,
         clientName,
         clientEmail,
@@ -168,7 +169,8 @@ router.post(
         appointmentEnd,
         price,
         pointsEarned,
-        createdAt
+        createdAt,
+        cancellationToken
       );
 
       if (process.env.BREVO_API_KEY && process.env.BREVO_SMS_SENDER) {
