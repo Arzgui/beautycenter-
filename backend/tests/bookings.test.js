@@ -135,7 +135,7 @@ describe('Annulation de reservation', () => {
   it('devrait renvoyer 404 pour un token inconnu', async () => {
     const response = await request(app)
       .post('/api/bookings/cancel')
-      .send({ token: '11111111-1111-1111-1111-111111111111' });
+      .send({ token: '1479fb4f-0456-4d8d-82b0-08307a52c6f4' });
 
     expect(response.statusCode).toBe(404);
   });
