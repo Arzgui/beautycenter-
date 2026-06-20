@@ -39,6 +39,8 @@ export async function initializeDatabase() {
       twoFactorSecret TEXT,
       twoFactorEnabled INTEGER DEFAULT 0,
       role TEXT DEFAULT 'client',
+      emailVerified INTEGER DEFAULT 0,
+      emailVerificationToken TEXT,
       createdAt TEXT NOT NULL
     );
 
@@ -113,7 +115,17 @@ CREATE TABLE IF NOT EXISTS password_resets (
   if (!columnNames.includes('cancelledAt')) {
     await db.exec('ALTER TABLE bookings ADD COLUMN cancelledAt TEXT;');
   }
-  if (!columnNames.includes('cancelledBy')) {
+if (!columnNames.includes('cancelledBy')) {
     await db.exec('ALTER TABLE bookings ADD COLUMN cancelledBy TEXT;');
-  };
+  }
+
+  const userColumns = await db.all("PRAGMA table_info(users);");
+  const userColumnNames = userColumns.map((col) => col.name);
+
+  if (!userColumnNames.includes('emailVerified')) {
+    await db.exec('ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0;');
+  }
+  if (!userColumnNames.includes('emailVerificationToken')) {
+    await db.exec('ALTER TABLE users ADD COLUMN emailVerificationToken TEXT;');
+  }
 }
