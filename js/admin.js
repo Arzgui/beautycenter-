@@ -147,10 +147,11 @@ function renderBookings(bookings) {
       <td>${b.price ? b.price + ' €' : 'Gratuit'}</td>
       <td>
         <select class="status-select" data-id="${b.id}">
-          ${['pending','confirmed','completed','canceled'].map(s =>
+          ${['pending','confirmed','completed','cancelled'].map(s =>
             `<option value="${s}" ${b.status === s ? 'selected' : ''}>${statusLabel(s)}</option>`
           ).join('')}
         </select>
+        ${b.status === 'cancelled' && b.cancelledBy ? `<div style="margin-top:0.3rem;font-size:0.75rem;color:var(--text-muted)"><i class="fas fa-${b.cancelledBy === 'client' ? 'user' : 'user-shield'}"></i> Annulé par ${b.cancelledBy === 'client' ? 'le client' : 'l\'admin'}${b.cancelledAt ? ' le ' + b.cancelledAt.slice(0, 10) : ''}</div>` : ''}
       </td>
       <td>
         <button class="btn btn-edit btn-sm" data-edit="${b.id}" title="Modifier">
@@ -419,7 +420,7 @@ tbody.querySelectorAll('[data-invite-email]').forEach(btn => {
 
 // ── UTILS ──
 function statusLabel(s) {
-  return { pending: 'En attente', confirmed: 'Confirmé', completed: 'Terminé', canceled: 'Annulé' }[s] || s;
+  return { pending: 'En attente', confirmed: 'Confirmé', completed: 'Terminé', cancelled: 'Annulé' }[s] || s;
 }
 
 function esc(str) {
