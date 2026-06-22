@@ -8,7 +8,7 @@
     <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Hybrid Stylesheet -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/laser-premium-v2.css">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
                     <li><a href="index.html#services" class="nav-link" id="navPricing">Tarifs</a></li>
                     <li><a href="index.html#contact" class="nav-link" id="navContact">Contact</a></li>
                 </ul>
-                <a href="index.html#booking" class="btn-cta" style="margin-left: 15px;" id="navCta">Demander un bilan</a>
+                <a href="index.html#booking" class="btn-cta nav-menu__cta" id="navCta">Demander un bilan</a>
             </nav>
         </div>
     </header>
@@ -68,19 +68,19 @@
     <!-- BIOGRAPHY SECTION -->
     <section class="section">
         <div class="container">
-            <div class="contact-layout" style="align-items: center;">
+            <div class="contact-layout">
                 <!-- Left: Photo block / visual placeholder -->
-                <div style="position: relative; border-radius: var(--border-radius); overflow: hidden; border: 1px solid rgba(201, 168, 76, 0.2); box-shadow: 0 15px 40px rgba(0,0,0,0.5); aspect-ratio: 4/5;">
-                    <img src="assets/clinic-interior.webp" alt="Cabine de soin IS Beauty avec équipement Médico Laser ICE" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="about-img-wrapper">
+                    <img src="assets/clinic-interior.webp" alt="Cabine de soin IS Beauty avec équipement Médico Laser ICE" loading="lazy" class="about-img">
                 </div>
                 <!-- Right: Bio text -->
                 <div>
-                    <span class="section-subtitle" style="text-align: left;">Notre approche</span>
-                    <h2 style="font-family: var(--font-heading); font-size: 40px; margin-bottom: 25px;">Confort, douceur, confiance</h2>
-                    <p style="margin-bottom: 20px;">Chez <strong>IS Beauty</strong>, nous savons que l'épilation n'est pas qu'une question d'esthétique. Elle concerne aussi le confort au quotidien et la confiance en soi.</p>
-                    <p style="margin-bottom: 20px;">Forte de <strong>5 ans d'expérience</strong>, IS Beauty a choisi la technologie <strong>Médico Laser ICE</strong> : une épilation laser durable et confortable grâce à son système de refroidissement intégré pendant la séance.</p>
-                    <p style="margin-bottom: 20px;">Au fil des séances, les poils s'affinent et diminuent progressivement, tandis que la peau paraît plus douce, plus lisse et plus nette. Qu'il s'agisse d'une petite zone ou d'une épilation complète, chaque séance est adaptée à votre peau et à votre phototype.</p>
-                    <a href="index.html#contact" class="btn-cta" style="margin-top: 15px;">Me Contacter</a>
+                    <span class="section-subtitle section-subtitle--hero">Notre approche</span>
+                    <h2>Confort, douceur, confiance</h2>
+                    <p>Chez <strong>IS Beauty</strong>, nous savons que l'épilation n'est pas qu'une question d'esthétique. Elle concerne aussi le confort au quotidien et la confiance en soi.</p>
+                    <p>Forte de <strong>5 ans d'expérience</strong>, IS Beauty a choisi la technologie <strong>Médico Laser ICE</strong> : une épilation laser durable et confortable grâce à son système de refroidissement intégré pendant la séance.</p>
+                    <p>Au fil des séances, les poils s'affinent et diminuent progressivement, tandis que la peau paraît plus douce, plus lisse et plus nette. Qu'il s'agisse d'une petite zone ou d'une épilation complète, chaque séance est adaptée à votre peau et à votre phototype.</p>
+                    <a href="index.html#contact" class="btn-cta">Me Contacter</a>
                 </div>
             </div>
         </div>
@@ -117,24 +117,24 @@
         <div class="container" style="max-width: 800px; text-align: center;">
             <span class="section-subtitle">Normes & Sécurité</span>
             <h2 class="section-title">Hygiène et <span>précautions</span></h2>
-            <p style="color: var(--color-muted); margin-bottom: 40px; font-size: 15px;">Chez IS Beauty, chaque séance doit être réalisée dans des conditions d'hygiène adaptées et après échange sur les précautions applicables :</p>
+            <p class="safety-intro">Chez IS Beauty, chaque séance doit être réalisée dans des conditions d'hygiène adaptées et après échange sur les précautions applicables :</p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; text-align: left;">
-                <div style="background-color: var(--color-bg); padding: 30px; border-radius: var(--border-radius); border-left: 3px solid var(--color-gold);">
-                    <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: var(--color-white);"><i class="fas fa-shield-virus" style="color: var(--color-gold); margin-right: 10px;"></i> Protection Oculaire</h4>
-                    <p style="font-size: 13px; color: var(--color-muted);">Des lunettes de protection spécifiques à la longueur d'onde de nos lasers sont obligatoirement portées par la cliente et la praticienne durant toute la séance.</p>
+            <div class="safety-grid">
+                <div class="safety-card">
+                    <h4><i class="fas fa-shield-virus"></i> Protection Oculaire</h4>
+                    <p>Des lunettes de protection spécifiques à la longueur d'onde de nos lasers sont obligatoirement portées par la cliente et la praticienne durant toute la séance.</p>
                 </div>
-                <div style="background-color: var(--color-bg); padding: 30px; border-radius: var(--border-radius); border-left: 3px solid var(--color-gold);">
-                    <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: var(--color-white);"><i class="fas fa-hand-sparkles" style="color: var(--color-gold); margin-right: 10px;"></i> Asepsie & Consommables</h4>
-                    <p style="font-size: 13px; color: var(--color-muted);">Toutes les surfaces d'appui et les embouts utilisés sont désinfectés entre chaque cliente. Les protections à usage unique sont renouvelées selon le protocole prévu.</p>
+                <div class="safety-card">
+                    <h4><i class="fas fa-hand-sparkles"></i> Asepsie & Consommables</h4>
+                    <p>Toutes les surfaces d'appui et les embouts utilisés sont désinfectés entre chaque cliente. Les protections à usage unique sont renouvelées selon le protocole prévu.</p>
                 </div>
-                <div style="background-color: var(--color-bg); padding: 30px; border-radius: var(--border-radius); border-left: 3px solid var(--color-gold);">
-                    <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: var(--color-white);"><i class="fas fa-notes-medical" style="color: var(--color-gold); margin-right: 10px;"></i> Bilan & Flash-test</h4>
-                    <p style="font-size: 13px; color: var(--color-muted);">Aucune séance ne débute sans un questionnaire d'éligibilité clinique strict et un flash de test effectué 24h à 48h à l'avance sur la zone à traiter.</p>
+                <div class="safety-card">
+                    <h4><i class="fas fa-notes-medical"></i> Bilan & Flash-test</h4>
+                    <p>Aucune séance ne débute sans un questionnaire d'éligibilité clinique strict et un flash de test effectué 24h à 48h à l'avance sur la zone à traiter.</p>
                 </div>
-                <div style="background-color: var(--color-bg); padding: 30px; border-radius: var(--border-radius); border-left: 3px solid var(--color-gold);">
-                    <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: var(--color-white);"><i class="fas fa-award" style="color: var(--color-gold); margin-right: 10px;"></i> Compétences & Protocoles</h4>
-                    <p style="font-size: 13px; color: var(--color-muted);">La praticienne veille à actualiser ses compétences et à appliquer les protocoles d'hygiène et de sécurité adaptés aux équipements utilisés.</p>
+                <div class="safety-card">
+                    <h4><i class="fas fa-award"></i> Compétences & Protocoles</h4>
+                    <p>La praticienne veille à actualiser ses compétences et à appliquer les protocoles d'hygiène et de sécurité adaptés aux équipements utilisés.</p>
                 </div>
             </div>
         </div>
@@ -147,8 +147,8 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <h3 style="font-family: var(--font-heading); color: var(--color-white); font-size: 24px;">IS BEAUTY</h3>
-                    <p style="margin-top: 15px;">Centre d'épilation Médico Laser ICE à Forbach, Moselle.</p>
+                    <h3 class="footer-brand-title">IS BEAUTY</h3>
+                    <p class="footer-brand-desc">Centre d'épilation Médico Laser ICE à Forbach, Moselle.</p>
                     <div class="footer-social-links" aria-label="Réseaux sociaux">
                         <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
                         <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
