@@ -135,7 +135,7 @@ function renderBookings(bookings) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Aucun rendez-vous trouvé.</td></tr>';
     return;
   }
-  ttbody.innerHTML = bookings.map(b => `
+  tbody.innerHTML = bookings.map(b => `
     <tr>
       <td><input type="checkbox" class="booking-checkbox" data-id="${b.id}" ${selectedBookingIds.has(b.id) ? 'checked' : ''} /></td>
       <td>
