@@ -43,11 +43,17 @@
     --color-muted:       #756A60;
     --color-text-dark:   #16130F;
 
-    /* Bordures */
+   /* Bordures */
     --color-border:      rgba(22, 19, 15, 0.08);
     --color-border-mid:  rgba(22, 19, 15, 0.15);
     --color-border-gold: rgba(176, 141, 106, 0.32);
 
+    /* Alias de compatibilité — pages avec CSS inline pas encore migré */
+    --color-cyan:        var(--color-gold);
+    --color-cyan-hover:  var(--color-gold-bright);
+    --color-blue:        var(--color-gold-deep);
+    --color-blue-mid:    var(--color-gold-light);
+    --color-white:       var(--color-ink);
     /* Layout */
     --transition:        all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     --transition-fast:   all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
