@@ -134,14 +134,14 @@ app.get('/reset-password.html', (req, res) => {
 // Route dédiée pour l'interface Admin avec sa propre CSP
 // Remplace ton ancienne route /admin.html par celle-ci :
 app.get('/admin.html', (req, res) => {
-  res.setHeader('Content-Security-Policy', 
+  res.setHeader('Content-Security-Policy',
     "default-src 'self' https://cdnjs.cloudflare.com; " +
     // script-src : on autorise le domaine de confiance, les scripts en ligne via le hash Chrome, et unsafe-inline par sécurité
     "script-src 'self' 'unsafe-inline' 'unsafe-hashes' https://cdnjs.cloudflare.com 'sha256-ZggTPWs/X/BAG2zH3Wcfvw0VoPr0Ax3MwomYcnDtmRc='; " +
     // script-src-attr : permet d'autoriser les événements inline comme onclick="..."
     "script-src-attr 'unsafe-inline'; " +
-    "style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; " +
-    "font-src 'self' https://cdnjs.cloudflare.com data:;"
+    "style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; " +
+    "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:;"
   );
   res.sendFile(path.join(publicDir, 'admin.html'));
 });
