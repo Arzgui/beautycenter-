@@ -4,6 +4,7 @@ let allBookings = [];
 let allClients = [];
 let pendingDeleteId = null;
 let editingBookingId = null;
+let selectedBookingIds = new Set();
 
 const SERVICES = {
   bilan: { label: 'Bilan Médico Laser ICE', duration: 30, price: 0 },
@@ -134,8 +135,9 @@ function renderBookings(bookings) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Aucun rendez-vous trouvé.</td></tr>';
     return;
   }
-  tbody.innerHTML = bookings.map(b => `
+  ttbody.innerHTML = bookings.map(b => `
     <tr>
+      <td><input type="checkbox" class="booking-checkbox" data-id="${b.id}" ${selectedBookingIds.has(b.id) ? 'checked' : ''} /></td>
       <td>
         <div style="font-weight:600">${esc(b.clientName)}</div>
         <div style="color:var(--text-muted);font-size:0.8rem">${esc(b.clientEmail)}</div>
@@ -170,9 +172,64 @@ function renderBookings(bookings) {
   tbody.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit));
   });
-  tbody.querySelectorAll('[data-delete]').forEach(btn => {
+ tbody.querySelectorAll('[data-delete]').forEach(btn => {
     btn.addEventListener('click', () => confirmDelete(btn.dataset.delete));
   });
+  tbody.querySelectorAll('.booking-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => toggleBookingSelection(cb.dataset.id, cb.checked));
+  });
+  updateBulkActionsBar();
+}
+
+function toggleBookingSelection(id, checked) {
+  if (checked) selectedBookingIds.add(id);
+  else selectedBookingIds.delete(id);
+  updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+  const bar = document.getElementById('bulkActionsBar');
+  const countEl = document.getElementById('bulkSelectedCount');
+  const count = selectedBookingIds.size;
+  bar.style.display = count > 0 ? 'flex' : 'none';
+  countEl.textContent = count > 0 ? `${count} sélectionné${count > 1 ? 's' : ''}` : '';
+
+  const selectAll = document.getElementById('selectAllBookings');
+  if (selectAll) {
+    const visibleIds = Array.from(document.querySelectorAll('.booking-checkbox')).map(cb => cb.dataset.id);
+    selectAll.checked = visibleIds.length > 0 && visibleIds.every(id => selectedBookingIds.has(id));
+  }
+}
+
+async function deleteSelectedBookings() {
+  const ids = Array.from(selectedBookingIds);
+  if (!ids.length) return;
+  if (!confirm(`Supprimer ${ids.length} rendez-vous sélectionné${ids.length > 1 ? 's' : ''} ? Cette action est irréversible.`)) return;
+
+  const btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Suppression...';
+
+  let successCount = 0;
+  for (const id of ids) {
+    try {
+      const res = await fetch(`${API}/api/admin/bookings/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) successCount++;
+    } catch {
+      // on continue malgré l'échec d'une suppression individuelle
+    }
+  }
+
+  selectedBookingIds.clear();
+  await loadBookings();
+  loadDashboard();
+  toast(`${successCount} rendez-vous supprimé${successCount > 1 ? 's' : ''}.`, successCount < ids.length);
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-trash"></i> Supprimer la sélection';
 }
 
 async function updateStatus(id, status) {
@@ -478,6 +535,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('bookingFilter').addEventListener('change', filterBookings);
   document.getElementById('bookingSearch').addEventListener('input', filterBookings);
+  document.getElementById('selectAllBookings').addEventListener('change', (e) => {
+    const checkboxes = document.querySelectorAll('.booking-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = e.target.checked;
+      if (e.target.checked) selectedBookingIds.add(cb.dataset.id);
+      else selectedBookingIds.delete(cb.dataset.id);
+    });
+    updateBulkActionsBar();
+  });
+  document.getElementById('bulkDeleteBtn').addEventListener('click', deleteSelectedBookings);
   document.getElementById('clientSearch').addEventListener('input', filterClients);
   document.getElementById('refreshBookings').addEventListener('click', loadBookings);
 
