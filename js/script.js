@@ -850,6 +850,10 @@ if (token && user) {
 }
 
 ul.appendChild(li);
+// Après ul.appendChild(li);
+li.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
 })();
 // 11. PRÉ-REMPLISSAGE FORMULAIRE RDV SI CONNECTÉ
 (function prefillBookingForm() {

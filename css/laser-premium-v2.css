@@ -570,7 +570,8 @@ header.scrolled {
     background: none;
     border: none;
     cursor: pointer;
-    z-index: 1100;
+    z-index: 1200;        /* ← était 1100, doit être > 1050 du menu */
+    position: relative;   /* ← nécessaire pour que z-index s'applique */
     width: 44px;
     height: 44px;
     align-items: center;
@@ -2044,6 +2045,45 @@ footer {
     .constellation-card::after {
         display: none;
     }
+
+
+.nav-menu.open .nav-item-profile {
+    display: none !important;
+}
+
+.nav-menu.open .nav-item-dropdown .dropdown-menu {
+    position: static;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding: 0 0 8px 0;
+    min-width: auto;
+    width: 100%;
+}
+
+.nav-menu.open .nav-item-dropdown .dropdown-menu::before {
+    display: none;
+}
+
+.nav-menu.open .nav-item-dropdown:not(.active) .dropdown-menu {
+    display: none;
+}
+
+.nav-menu.open .dropdown-link {
+    color: rgba(232, 224, 216, 0.7);
+    font-size: 11px;
+    padding: 8px 0;
+    justify-content: center;
+}
+
+.nav-menu.open .dropdown-link:hover {
+    color: var(--color-gold-bright);
+    background: transparent;
+}
+
 }
 
 
