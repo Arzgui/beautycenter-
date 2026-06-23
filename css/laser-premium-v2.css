@@ -1369,3 +1369,135 @@ textarea.form-control {
     font-size: 9px;
     color: var(--color-muted);
 }
+
+/* ==========================================================================
+   NAVIGATION MOBILE & RESPONSIVE (Géré par script.js via la classe .open)
+   ========================================================================== */
+
+/* 1. Style par défaut du bouton Burger (Masqué sur ordinateur) */
+.burger {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    zIndex: 1001; /* Reste au-dessus du menu ouvert */
+}
+
+.burger-line {
+    width: 100%;
+    height: 2px;
+    background-color: #1a1a1a; /* À adapter selon votre charte graphique */
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* 2. Media Query : Comportement Smartphone et Tablette (≤ 768px) */
+@media (max-width: 768px) {
+    /* On affiche le bouton burger */
+    .burger {
+        display: flex;
+    }
+
+    /* Animation des lignes du burger lorsque la classe .open est active */
+    .burger.open .burger-line:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+
+    .burger.open .burger-line:nth-child(2) {
+        opacity: 0;
+    }
+
+    .burger.open .burger-line:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
+
+    /* Masquage et positionnement du menu mobile par défaut */
+    .nav-menu {
+        position: fixed;
+        top: 0;
+        right: -100%; /* Caché à droite de l'écran */
+        width: 80%;   /* Largeur du panneau mobile */
+        max-width: 320px;
+        height: 100vh;
+        background-color: #F9F7F3; /* Correspond à votre theme-color */
+        padding: 80px 24px 40px 24px;
+        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        zIndex: 1000;
+        overflow-y: auto; /* Permet le défilement si le menu est long */
+    }
+
+    /* Déploiement du menu lorsque le JS ajoute la classe .open */
+    .nav-menu.open {
+        right: 0; /* S'ouvre en glissant vers la gauche */
+    }
+
+    /* Adaptation de la liste de liens en colonne */
+    .nav-menu ul {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .nav-menu .nav-link {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        color: #1a1a1a;
+        text-decoration: none;
+        width: 100%;
+    }
+
+    /* 3. Gestion des Menus Déroulants (Dropdowns) sur Mobile */
+    .nav-menu .dropdown-menu {
+        display: none; /* Caché par défaut */
+        flex-direction: column;
+        gap: 12px;
+        padding-left: 16px;
+        margin-top: 10px;
+        list-style: none;
+        border-left: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    /* Quand le JS ajoute .open sur le li parent, on affiche son sous-menu */
+    .nav-item-dropdown.open .dropdown-menu {
+        display: flex;
+    }
+
+    /* Rotation de la flèche chevron quand le menu est ouvert */
+    .nav-item-dropdown.open .fa-chevron-down {
+        transform: rotate(180deg);
+        transition: transform 0.2s ease;
+    }
+
+    /* Le bouton CTA Mobile dans le menu */
+    .nav-menu__cta-mobile {
+        display: block;
+        text-align: center;
+        background-color: #1a1a1a; /* À adapter (ex: votre vert ou couleur premium) */
+        color: #fff;
+        padding: 14px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: auto; /* Pousse le bouton vers le bas du menu */
+    }
+}
+
+/* 4. Masquer le bouton CTA Mobile sur Ordinateur (> 768px) */
+@media (min-width: 769px) {
+    .nav-menu__cta-mobile {
+        display: none;
+    }
+}
