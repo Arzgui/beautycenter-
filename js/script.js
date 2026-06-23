@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         checkScroll();
-        window.addEventListener('scroll', checkScroll);
+        window.addEventListener('scroll', checkScroll, { passive: true });
     }
 
     // 2. MOBILE BURGER MENU
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navMenu.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', () => {
                 setMobileMenu(false);
-            });
+            } );
         });
     }
 
@@ -275,21 +275,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function subscribeUserToPush() {
         try {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
             if (Notification.permission === 'denied') {
                 showToast('Notifications bloquées dans votre navigateur.', 'fa-ban');
-                return;
+                return null;
             }
 
             const registration = await navigator.serviceWorker.ready;
 
             if (!registration.active) {
                 console.warn('Service worker non actif, notifications push ignorées.');
-                return;
+                return null;
             }
 
             const vapidKey = await getVapidKey();
-            if (!vapidKey) return;
+            if (!vapidKey) return null;
 
             const existing = await registration.pushManager.getSubscription();
             if (existing) {
@@ -375,9 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function updateSelectedDate() {
-            appointmentDateInput.value = selectedDay ? formatDateForApi(selectedDay) : '';
-            appointmentStartInput.value = selectedSlot;
-            appointmentPriceInput.value = String(servicePrices[serviceZoneInput.value] ?? 0);
+            if (appointmentDateInput) appointmentDateInput.value = selectedDay ? formatDateForApi(selectedDay) : '';
+            if (appointmentStartInput) appointmentStartInput.value = selectedSlot;
+            if (appointmentPriceInput) appointmentPriceInput.value = String(servicePrices[serviceZoneInput.value] ?? 0);
         }
 
         async function getUnavailableSlots(date, serviceZone) {
@@ -527,8 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const clientEmail = document.getElementById('bEmail').value.trim();
             const clientPhone = document.getElementById('bPhone').value.trim();
             const serviceZone = serviceZoneInput.value;
-            const appointmentDate = appointmentDateInput.value;
-            const appointmentStart = appointmentStartInput.value;
+            const appointmentDate = appointmentDateInput ? appointmentDateInput.value : formatDateForApi(selectedDay);
+            const appointmentStart = selectedSlot;
             const price = servicePrices[serviceZone] ?? 0;
 
             if (!clientName || !clientEmail || !clientPhone || !serviceZone) {
@@ -536,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            appointmentPriceInput.value = String(price);
+            if (appointmentPriceInput) appointmentPriceInput.value = String(price);
 
             const payload = { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart, price };
             const apiUrl = `${getApiBaseUrl()}/api/bookings`;
@@ -753,39 +753,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextBtnLightbox = lightbox.querySelector('.lightbox-nav.next');
 
         function openLightbox(index) {
-            activeIndex = index;
             previouslyFocusedElement = document.activeElement;
-            updateLightbox();
+            activeIndex = index;
+            updateLightboxContent();
             lightbox.setAttribute('aria-hidden', 'false');
             lightbox.classList.add('active');
             closeBtn.focus();
+            document.body.style.overflow = 'hidden';
         }
 
         function closeLightbox() {
             lightbox.setAttribute('aria-hidden', 'true');
             lightbox.classList.remove('active');
+            document.body.style.overflow = '';
             if (previouslyFocusedElement) previouslyFocusedElement.focus();
         }
 
-        function updateLightbox() {
+        function updateLightboxContent() {
             const currentImg = imagesList[activeIndex];
-            if (lightboxImg && currentImg) {
+            if (currentImg && lightboxImg && lightboxCaption) {
                 lightboxImg.src = currentImg.src;
                 lightboxImg.alt = currentImg.alt;
-            }
-            if (lightboxCaption && currentImg) {
                 lightboxCaption.textContent = currentImg.title;
             }
         }
 
-        function nextImage() {
+        function nextLightboxImage() {
             activeIndex = (activeIndex + 1) % imagesList.length;
-            updateLightbox();
+            updateLightboxContent();
         }
 
-        function prevImage() {
+        function prevLightboxImage() {
             activeIndex = (activeIndex - 1 + imagesList.length) % imagesList.length;
-            updateLightbox();
+            updateLightboxContent();
         }
 
         galleryItems.forEach((item, index) => {
@@ -796,8 +796,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
-        if (prevBtnLightbox) prevBtnLightbox.addEventListener('click', prevImage);
-        if (nextBtnLightbox) nextBtnLightbox.addEventListener('click', nextImage);
+        if (nextBtnLightbox) nextBtnLightbox.addEventListener('click', nextLightboxImage);
+        if (prevBtnLightbox) prevBtnLightbox.addEventListener('click', prevLightboxImage);
 
         lightbox.addEventListener('click', (e) => {
             if (e.target === lightbox || e.target.classList.contains('lightbox-content')) {
@@ -808,65 +808,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', (e) => {
             if (!lightbox.classList.contains('active')) return;
             if (e.key === 'Escape') closeLightbox();
-            if (e.key === 'ArrowRight') nextImage();
-            if (e.key === 'ArrowLeft') prevImage();
+            if (e.key === 'ArrowRight') nextLightboxImage();
+            if (e.key === 'ArrowLeft') prevLightboxImage();
         });
     }
-
-    // 10. HEADER — BOUTON MON ESPACE
-    (function initAuthNav() {
-        const navMenu = document.getElementById('navMenu');
-        const ul = navMenu?.querySelector('ul');
-        if (!ul) return;
-
-        const token = localStorage.getItem('client_token');
-        const user = JSON.parse(localStorage.getItem('client_user') || 'null');
-
-        const li = document.createElement('li');
-        li.className = 'nav-item-profile';
-        li.style.display = 'flex';
-        li.style.alignItems = 'center';
-        li.style.marginLeft = 'auto';
-        li.style.paddingLeft = '20px';
-
-        if (token && user) {
-            const initials = (user.name || 'M').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-            const firstName = user.name.split(' ')[0];
-
-            li.innerHTML = `
-                <a href="espace-client.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: rgba(176, 141, 106, 0.08); border: 1px solid rgba(176, 141, 106, 0.25); border-radius: 50px; text-decoration: none; transition: all 0.3s ease;">
-                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-gold); color: #F9F7F3; font-size: 11px; font-weight: 700; flex-shrink: 0;">
-                        ${initials}
-                    </span>
-                    <div style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
-                        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--color-muted);">Mon Compte</span>
-                        <span style="font-size: 13px; font-weight: 600; color: var(--color-ink); text-transform: capitalize;">${firstName.toLowerCase()}</span>
-                    </div>
-                </a>`;
-        } else {
-            li.innerHTML = `
-                <a href="compte.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--color-ink); color: var(--color-bg); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 3px; text-decoration: none; transition: all 0.3s ease;">
-                    <i class="fas fa-user"></i> Connexion
-                </a>`;
-        }
-
-        ul.appendChild(li);
-
-        // Empêche le clic sur le bouton profil de fermer le menu burger
-        li.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    })();
-
-    // 11. PRÉ-REMPLISSAGE FORMULAIRE RDV SI CONNECTÉ
-    (function prefillBookingForm() {
-        const user = JSON.parse(localStorage.getItem('client_user') || 'null');
-        if (!user) return;
-
-        const nameField = document.getElementById('bName');
-        const emailField = document.getElementById('bEmail');
-
-        if (nameField && !nameField.value) nameField.value = user.name || '';
-        if (emailField && !emailField.value) emailField.value = user.email || '';
-    })();
 });
