@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         burgerToggle.setAttribute('aria-controls', 'navMenu');
 
         function setMobileMenu(open) {
-            navMenu.classList.toggle('active', open);
+            navMenu.classList.toggle('open', open);
             burgerToggle.setAttribute('aria-expanded', String(open));
 
             const lines = burgerToggle.querySelectorAll('.burger-line');
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         burgerToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            setMobileMenu(!navMenu.classList.contains('active'));
+            setMobileMenu(!navMenu.classList.contains('open'));
         });
 
         document.addEventListener('click', (e) => {
