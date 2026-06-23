@@ -2511,3 +2511,166 @@ footer {
 .nav-menu__cta {
     margin-left: 20px;
 }
+
+/* ============================================================
+   PATCH — BURGER MENU MOBILE PREMIUM
+   À ajouter à la fin de laser-premium-v2.css
+   ============================================================ */
+
+@media (max-width: 640px) {
+
+    /* Overlay plein écran */
+    .nav-menu.open {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        inset: 0;
+        background: rgba(22, 19, 15, 0.97);
+        backdrop-filter: blur(18px);
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        padding: 80px 32px 48px;
+    }
+
+    /* Marque IS Beauty en haut à gauche */
+    .nav-menu.open::before {
+        content: 'IS Beauty';
+        position: absolute;
+        top: 26px;
+        left: 28px;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 19px;
+        font-style: italic;
+        font-weight: 300;
+        color: rgba(176, 141, 106, 0.55);
+        letter-spacing: 2px;
+        pointer-events: none;
+    }
+
+    /* Liste des liens centrée, pleine largeur */
+    .nav-menu.open ul {
+        flex-direction: column;
+        text-align: center;
+        gap: 0;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .nav-menu.open li {
+        margin: 0;
+        width: 100%;
+        border-bottom: 0.5px solid rgba(176, 141, 106, 0.12);
+    }
+
+    .nav-menu.open li:last-child {
+        border-bottom: none;
+    }
+
+    /* Liens nav — plus grands, plus aérés */
+    .nav-menu.open .nav-link {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 2.5px;
+        padding: 18px 0;
+        color: rgba(232, 224, 216, 0.75);
+        text-align: center;
+        width: 100%;
+        transition: color 0.2s ease, letter-spacing 0.2s ease;
+    }
+
+    .nav-menu.open .nav-link:hover,
+    .nav-menu.open .nav-link.active {
+        color: #D4AF7A;
+        letter-spacing: 3px;
+    }
+
+    /* Icône chevron dropdown — discret */
+    .nav-menu.open .nav-link i {
+        opacity: 0.4;
+        font-size: 8px;
+        margin-left: 4px;
+    }
+
+    /* Sous-menus dropdown en mobile */
+    .nav-menu.open .nav-item-dropdown .dropdown-menu {
+        position: static;
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        padding: 0 0 10px;
+        min-width: auto;
+        width: 100%;
+        display: none;
+        grid-template-columns: 1fr;
+    }
+
+    .nav-menu.open .nav-item-dropdown .dropdown-menu::before {
+        display: none;
+    }
+
+    .nav-menu.open .nav-item-dropdown.active .dropdown-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .nav-menu.open .dropdown-link {
+        justify-content: center;
+        color: rgba(176, 141, 106, 0.65);
+        font-size: 10px;
+        padding: 9px 0;
+        letter-spacing: 1.5px;
+        border-radius: 0;
+    }
+
+    .nav-menu.open .dropdown-link:hover {
+        color: #D4AF7A;
+        background: transparent;
+    }
+
+    /* CTA "Prendre RDV" en bas du menu */
+    .nav-menu__cta-mobile {
+        display: none;
+    }
+
+    .nav-menu.open .nav-menu__cta-mobile {
+        display: inline-block;
+        margin-top: 32px;
+        padding: 13px 36px;
+        border: 1px solid rgba(176, 141, 106, 0.35);
+        border-radius: 3px;
+        color: #B08D6A;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .nav-menu.open .nav-menu__cta-mobile:hover {
+        background: rgba(176, 141, 106, 0.1);
+        border-color: rgba(176, 141, 106, 0.6);
+        color: #D4AF7A;
+    }
+
+    /* Bouton profil caché dans le menu mobile */
+    .nav-menu.open .nav-item-profile {
+        display: none !important;
+    }
+
+    /* Burger → croix animée, bien positionnée au-dessus du menu */
+    .burger {
+        position: relative;
+        z-index: 1200;
+    }
+
+}
