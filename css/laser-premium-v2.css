@@ -1,12 +1,7 @@
 /* ============================================================
-   LASER PREMIUM — CSS COMPLET v2
+   LASER PREMIUM — CSS COMPLET v2.1
    Thème : Noir encre · Or rosé · Ivoire
    Fonts  : Cormorant Garamond (titres) + DM Sans (corps)
-
-   Direction : "Atelier de joaillerie" — on traite la peau
-   comme une matière précieuse. Lignes filaires dorées,
-   contrastes profonds, typographie qui respire, micro-éclats
-   de lumière sur les interactions plutôt que des ombres lourdes.
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -17,53 +12,45 @@
    ============================================================ */
 
 :root {
-    /* Typographies */
     --font-heading: 'Cormorant Garamond', serif;
     --font-body:    'DM Sans', sans-serif;
 
-    /* Palette principale — approfondie pour plus de profondeur */
-    --color-bg:          #F9F7F3;   /* ivoire chaud */
-    --color-bg-alt:      #EFE8DD;   /* ivoire plus soutenu */
-    --color-card:        #FFFFFF;   /* blanc pur pour les cartes */
-    --color-ink:         #16130F;   /* noir encre profond et chaud */
-    --color-ink-soft:    #2A241D;   /* noir adouci (texte sur fond clair, dégradés) */
-    --color-gold:        #B08D6A;   /* or rosé — accent principal */
-    --color-gold-deep:   #8E6E4E;   /* or foncé — hover, profondeur */
-    --color-gold-bright: #D4AF7A;   /* or clair — éclats, highlights */
-    --color-gold-light:  #F4EBDD;   /* or très clair — fonds secondaires */
-    --color-champagne:   #EADFC8;   /* nuance intermédiaire chaude */
+    --color-bg:          #F9F7F3;
+    --color-bg-alt:      #EFE8DD;
+    --color-card:        #FFFFFF;
+    --color-ink:         #16130F;
+    --color-ink-soft:    #2A241D;
+    --color-gold:        #B08D6A;
+    --color-gold-deep:   #8E6E4E;
+    --color-gold-bright: #D4AF7A;
+    --color-gold-light:  #F4EBDD;
+    --color-champagne:   #EADFC8;
 
-    /* Dégradé signature — utilisé avec parcimonie */
     --gradient-gold: linear-gradient(135deg, #C9A074 0%, #B08D6A 45%, #8E6E4E 100%);
     --gradient-ink:  linear-gradient(135deg, #16130F 0%, #2A241D 100%);
 
-    /* Textes */
     --color-text:        #16130F;
     --color-text-mid:    #524A40;
     --color-muted:       #756A60;
     --color-text-dark:   #16130F;
 
-    /* Bordures */
     --color-border:      rgba(22, 19, 15, 0.08);
     --color-border-mid:  rgba(22, 19, 15, 0.15);
     --color-border-gold: rgba(176, 141, 106, 0.32);
 
-    /* Alias de compatibilité — pages avec CSS inline pas encore migré */
     --color-cyan:        var(--color-gold);
     --color-cyan-hover:  var(--color-gold-bright);
     --color-blue:        var(--color-gold-deep);
     --color-blue-mid:    var(--color-gold-light);
     --color-white:       var(--color-ink);
 
-    /* Layout */
     --transition:        all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     --transition-fast:   all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    --border-radius:     3px;       /* sobre, taillé net comme une pierre */
+    --border-radius:     3px;
     --border-radius-lg:  6px;
     --container-width:   1200px;
     --container-padding: 28px;
 
-    /* Ombres — plus fines et superposées, jamais lourdes */
     --shadow-soft:   0 1px 2px rgba(22, 19, 15, 0.03), 0 12px 32px rgba(22, 19, 15, 0.06);
     --shadow-card:   0 1px 2px rgba(22, 19, 15, 0.04), 0 4px 16px rgba(22, 19, 15, 0.04);
     --shadow-lift:   0 1px 3px rgba(22, 19, 15, 0.05), 0 22px 46px rgba(22, 19, 15, 0.10);
@@ -221,7 +208,7 @@ img {
 
 
 /* ============================================================
-   BUTTONS — avec balayage lumineux signature
+   BUTTONS
    ============================================================ */
 
 .btn-cta,
@@ -244,7 +231,11 @@ img {
     padding: 15px 32px;
 }
 
-/* Balayage lumineux au survol — discret, une seule fois */
+.btn-cta--full {
+    display: block;
+    width: 100%;
+}
+
 .btn-cta::before,
 .btn-secondary::before,
 .btn-pink-dark::before,
@@ -267,7 +258,6 @@ img {
     left: 130%;
 }
 
-/* Bouton principal : fond encre */
 .btn-cta {
     background-color: var(--color-ink);
     color: var(--color-bg);
@@ -281,7 +271,6 @@ img {
     box-shadow: var(--shadow-lift);
 }
 
-/* Bouton secondaire : contour encre */
 .btn-secondary {
     background-color: transparent;
     color: var(--color-ink);
@@ -295,7 +284,6 @@ img {
     transform: translateY(-2px);
 }
 
-/* Bouton tertiaire : fond or clair */
 .btn-pink-dark {
     background-color: var(--color-gold-light);
     color: var(--color-gold-deep);
@@ -309,7 +297,6 @@ img {
     transform: translateY(-2px);
 }
 
-/* Bouton or plein (usage ponctuel) */
 .btn-gold {
     position: relative;
     overflow: hidden;
@@ -393,6 +380,7 @@ header.scrolled {
     font-style: italic;
     line-height: 1;
     transition: var(--transition-fast);
+    flex-shrink: 0;
 }
 
 .logo-mark::after {
@@ -431,7 +419,7 @@ header.scrolled {
 
 
 /* ============================================================
-   NAV MENU
+   NAV MENU (desktop)
    ============================================================ */
 
 .nav-menu {
@@ -460,6 +448,9 @@ header.scrolled {
     padding: 10px 0;
     white-space: nowrap;
     transition: var(--transition-fast);
+    background: none;
+    border: none;
+    cursor: pointer;
 }
 
 .nav-link:hover,
@@ -504,6 +495,7 @@ header.scrolled {
     visibility: hidden;
     transition: var(--transition);
     box-shadow: var(--shadow-lift);
+    z-index: 200;
 }
 
 .dropdown-menu::before {
@@ -571,21 +563,23 @@ header.scrolled {
     background: none;
     border: none;
     cursor: pointer;
-    z-index: 1200;        /* ← était 1100, doit être > 1050 du menu */
-    position: relative;   /* ← nécessaire pour que z-index s'applique */
+    z-index: 1200;
+    position: relative;
     width: 44px;
     height: 44px;
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    gap: 5px;
+    padding: 0;
 }
 
 .burger-line {
     width: 24px;
     height: 1.5px;
     background-color: var(--color-ink);
-    margin: 5px 0;
     transition: var(--transition);
+    display: block;
 }
 
 
@@ -608,7 +602,6 @@ header.scrolled {
         var(--color-bg);
 }
 
-/* Trame filaire dorée — texture signature, remplace la photo */
 .hero::before {
     content: '';
     position: absolute;
@@ -643,7 +636,7 @@ header.scrolled {
 
 .hero-monogram {
     font-family: var(--font-heading);
-    font-size: clamp(220px, 30vw, 420px);
+    font-size: clamp(140px, 20vw, 280px);
     font-weight: 300;
     font-style: italic;
     color: rgba(176, 141, 106, 0.07);
@@ -657,7 +650,6 @@ header.scrolled {
     z-index: 1;
 }
 
-/* Colonne droite : signature visuelle qui remplace la photo */
 .hero-visual {
     position: relative;
     z-index: 2;
@@ -673,8 +665,8 @@ header.scrolled {
     position: relative;
     display: grid;
     place-items: center;
-    width: clamp(180px, 18vw, 240px);
-    height: clamp(180px, 18vw, 240px);
+    width: clamp(140px, 14vw, 200px);
+    height: clamp(140px, 14vw, 200px);
     border-radius: 50%;
     border: 1px solid var(--color-border-gold);
 }
@@ -689,7 +681,7 @@ header.scrolled {
 
 .hero-visual-ring span {
     font-family: var(--font-heading);
-    font-size: clamp(46px, 4.4vw, 60px);
+    font-size: clamp(36px, 3.6vw, 52px);
     font-style: italic;
     font-weight: 400;
     background: var(--gradient-gold);
@@ -722,7 +714,7 @@ header.scrolled {
 .hero-stat strong {
     display: block;
     font-family: var(--font-heading);
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 500;
     color: var(--color-ink);
     margin-bottom: 4px;
@@ -740,7 +732,7 @@ header.scrolled {
 
 .hero h1 {
     font-family: var(--font-heading);
-    font-size: clamp(46px, 5.6vw, 74px);
+    font-size: clamp(42px, 5vw, 68px);
     font-weight: 300;
     color: var(--color-ink);
     line-height: 1.08;
@@ -932,6 +924,12 @@ header.scrolled {
     color: var(--color-gold-deep);
 }
 
+.price-unit {
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--color-muted);
+}
+
 .service-link {
     font-size: 11px;
     font-weight: 600;
@@ -1050,6 +1048,7 @@ header.scrolled {
     background-color: var(--color-border-mid);
     cursor: pointer;
     transition: var(--transition);
+    border: none;
 }
 
 .carousel-dot.active {
@@ -1090,6 +1089,11 @@ header.scrolled {
     color: var(--color-ink);
     margin-bottom: 24px;
     line-height: 1.1;
+}
+
+.booking-text h2 span {
+    color: var(--color-gold);
+    font-style: italic;
 }
 
 .booking-text p {
@@ -1209,6 +1213,10 @@ textarea.form-control {
     margin-top: 3px;
     accent-color: var(--color-gold);
     flex-shrink: 0;
+}
+
+.form-group--submit {
+    margin-bottom: 0;
 }
 
 
@@ -1370,41 +1378,309 @@ textarea.form-control {
     color: var(--color-muted);
 }
 
-/* ==========================================================================
-   NAVIGATION MOBILE & RESPONSIVE (Géré par script.js via la classe .open)
-   ========================================================================== */
+.slot-button:hover:not(:disabled) {
+    border-color: var(--color-gold);
+    background: var(--color-gold-light);
+    color: var(--color-gold-deep);
+}
 
-/* 1. Style par défaut du bouton Burger (Masqué sur ordinateur) */
-.burger {
-    display: none;
-    flex-direction: column;
-    justify-content: space-between;
-    width: 24px;
-    height: 18px;
-    background: transparent;
+.slot-button:disabled,
+.slot-button.unavailable {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+
+.toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--color-ink);
+    color: var(--color-bg);
+    padding: 14px 24px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-lift);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 9999;
+    white-space: nowrap;
+    max-width: 90vw;
+    white-space: normal;
+    text-align: center;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast i {
+    color: var(--color-gold-bright);
+    flex-shrink: 0;
+}
+
+
+/* ============================================================
+   LIGHTBOX
+   ============================================================ */
+
+.lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(22, 19, 15, 0.92);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition);
+}
+
+.lightbox.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.lightbox-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    text-align: center;
+}
+
+.lightbox-img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: var(--border-radius-lg);
+}
+
+.lightbox-caption {
+    color: var(--color-bg);
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 300;
+    margin-top: 16px;
+    font-style: italic;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: -44px;
+    right: 0;
+    background: none;
     border: none;
+    color: var(--color-bg);
+    font-size: 20px;
     cursor: pointer;
-    padding: 0;
-    zIndex: 1001; /* Reste au-dessus du menu ouvert */
+    transition: var(--transition-fast);
+    padding: 8px;
 }
 
-.burger-line {
-    width: 100%;
-    height: 2px;
-    background-color: #1a1a1a; /* À adapter selon votre charte graphique */
-    transition: transform 0.3s ease, opacity 0.3s ease;
+.lightbox-close:hover { color: var(--color-gold); }
+
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(249, 247, 243, 0.1);
+    border: 0.5px solid rgba(249, 247, 243, 0.2);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    color: var(--color-bg);
+    font-size: 16px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* 2. Media Query : Comportement Smartphone et Tablette (≤ 768px) */
+.lightbox-nav:hover { background: rgba(176, 141, 106, 0.3); }
+.lightbox-nav.prev { left: -64px; }
+.lightbox-nav.next { right: -64px; }
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+footer {
+    background: var(--gradient-ink);
+    color: #C8BEB4;
+    padding: 72px 0 0;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    padding-bottom: 56px;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-col h3 {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 400;
+    color: #EBE2D4;
+    margin-bottom: 18px;
+    letter-spacing: 0.2px;
+}
+
+.footer-brand-title {
+    font-family: var(--font-heading) !important;
+    font-size: 26px !important;
+    font-weight: 300 !important;
+    letter-spacing: 3px !important;
+    color: #EBE2D4 !important;
+    margin-bottom: 12px !important;
+}
+
+.footer-brand-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #9A9087;
+    margin-bottom: 24px;
+}
+
+.footer-social-links {
+    display: flex;
+    gap: 12px;
+}
+
+.social-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 0.5px solid rgba(176, 141, 106, 0.3);
+    border-radius: 50%;
+    color: var(--color-gold);
+    font-size: 14px;
+    transition: var(--transition-fast);
+}
+
+.social-btn:hover {
+    background: var(--color-gold);
+    border-color: var(--color-gold);
+    color: #FFFFFF;
+    transform: translateY(-2px);
+}
+
+.footer-links {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.footer-links a {
+    font-size: 13px;
+    color: #9A9087;
+    transition: var(--transition-fast);
+}
+
+.footer-links a:hover {
+    color: var(--color-gold-bright);
+    padding-left: 4px;
+}
+
+.footer-col p {
+    font-size: 13px;
+    color: #9A9087;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.6;
+}
+
+.footer-col p i {
+    color: var(--color-gold);
+    margin-top: 3px;
+    flex-shrink: 0;
+    font-size: 13px;
+}
+
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 0;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.footer-copy {
+    font-size: 12px;
+    color: #6B6158;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.site-credit {
+    color: #6B6158;
+}
+
+.site-credit strong {
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.footer-legal-links {
+    display: flex;
+    gap: 20px;
+}
+
+.footer-legal-links a {
+    font-size: 11px;
+    color: #6B6158;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: var(--transition-fast);
+}
+
+.footer-legal-links a:hover {
+    color: var(--color-gold);
+}
+
+
+/* ============================================================
+   NAVIGATION MOBILE & RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1024px) {
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 36px;
+    }
+}
+
 @media (max-width: 768px) {
-    /* On affiche le bouton burger */
+
+    /* --- Burger visible --- */
     .burger {
         display: flex;
     }
 
-    /* Animation des lignes du burger lorsque la classe .open est active */
     .burger.open .burger-line:nth-child(1) {
-        transform: translateY(8px) rotate(45deg);
+        transform: translateY(6.5px) rotate(45deg);
     }
 
     .burger.open .burger-line:nth-child(2) {
@@ -1412,90 +1688,230 @@ textarea.form-control {
     }
 
     .burger.open .burger-line:nth-child(3) {
-        transform: translateY(-8px) rotate(-45deg);
+        transform: translateY(-6.5px) rotate(-45deg);
     }
 
-    /* Masquage et positionnement du menu mobile par défaut */
+    /* --- Menu mobile panneau latéral --- */
     .nav-menu {
         position: fixed;
         top: 0;
-        right: -100%; /* Caché à droite de l'écran */
-        width: 80%;   /* Largeur du panneau mobile */
+        right: -100%;
+        width: 80%;
         max-width: 320px;
         height: 100vh;
-        background-color: #F9F7F3; /* Correspond à votre theme-color */
-        padding: 80px 24px 40px 24px;
-        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+        background-color: var(--color-bg);
+        padding: 88px 28px 48px;
+        box-shadow: -8px 0 32px rgba(22, 19, 15, 0.08);
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 0;
         transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        zIndex: 1000;
-        overflow-y: auto; /* Permet le défilement si le menu est long */
+        z-index: 1100;
+        overflow-y: auto;
+        border-left: 0.5px solid var(--color-border);
     }
 
-    /* Déploiement du menu lorsque le JS ajoute la classe .open */
     .nav-menu.open {
-        right: 0; /* S'ouvre en glissant vers la gauche */
+        right: 0;
     }
 
-    /* Adaptation de la liste de liens en colonne */
     .nav-menu ul {
-        display: flex;
         flex-direction: column;
-        gap: 20px;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .nav-menu .nav-link {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 18px;
-        color: #1a1a1a;
-        text-decoration: none;
+        gap: 0;
         width: 100%;
     }
 
-    /* 3. Gestion des Menus Déroulants (Dropdowns) sur Mobile */
-    .nav-menu .dropdown-menu {
-        display: none; /* Caché par défaut */
-        flex-direction: column;
-        gap: 12px;
-        padding-left: 16px;
-        margin-top: 10px;
-        list-style: none;
-        border-left: 1px solid rgba(0, 0, 0, 0.1);
+    .nav-menu li {
+        margin: 0;
+        border-bottom: 0.5px solid var(--color-border);
     }
 
-    /* Quand le JS ajoute .open sur le li parent, on affiche son sous-menu */
-    .nav-item-dropdown.open .dropdown-menu {
+    .nav-link {
         display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        letter-spacing: 2px;
+        color: var(--color-ink);
+        padding: 18px 0;
+        width: 100%;
     }
 
-    /* Rotation de la flèche chevron quand le menu est ouvert */
-    .nav-item-dropdown.open .fa-chevron-down {
-        transform: rotate(180deg);
-        transition: transform 0.2s ease;
+    /* --- Dropdowns mobile --- */
+    .dropdown-menu {
+        position: static;
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        padding: 0 0 8px 16px;
+        display: none;
+        background: transparent;
+        min-width: 0;
+        width: 100%;
+        grid-template-columns: 1fr !important;
     }
 
-    /* Le bouton CTA Mobile dans le menu */
+    .dropdown-menu::before {
+        display: none;
+    }
+
+    .nav-item-dropdown.active .dropdown-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .dropdown-link {
+        font-size: 12px;
+        letter-spacing: 1px;
+        padding: 12px 10px;
+        color: var(--color-muted);
+        border-bottom: 0.5px solid var(--color-border);
+        border-radius: 0;
+    }
+
+    .dropdown-link:last-child {
+        border-bottom: none;
+    }
+
+    /* --- CTA mobile --- */
     .nav-menu__cta-mobile {
         display: block;
         text-align: center;
-        background-color: #1a1a1a; /* À adapter (ex: votre vert ou couleur premium) */
-        color: #fff;
-        padding: 14px;
-        border-radius: 4px;
-        text-decoration: none;
+        background-color: var(--color-ink);
+        color: var(--color-bg);
+        padding: 16px;
+        border-radius: var(--border-radius);
+        font-family: var(--font-body);
+        font-size: 11px;
         font-weight: 600;
-        margin-top: auto; /* Pousse le bouton vers le bas du menu */
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-top: 32px;
+    }
+
+    /* --- Hero mobile --- */
+    .hero {
+        min-height: auto;
+        padding: 120px 0 60px;
+    }
+
+    .hero .container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .hero-visual {
+        display: none;
+    }
+
+    .hero-monogram {
+        display: none;
+    }
+
+    .hero h1 {
+        font-size: clamp(38px, 10vw, 52px);
+    }
+
+    .hero p {
+        font-size: 14px;
+        padding: 12px 18px;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .hero-buttons .btn-cta,
+    .hero-buttons .btn-secondary {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* --- Booking layout mobile --- */
+    .booking-layout {
+        grid-template-columns: 1fr;
+        gap: 36px;
+    }
+
+    .booking-text {
+        max-width: 100%;
+    }
+
+    .reservation-form-wrapper {
+        padding: 28px 20px;
+    }
+
+    /* --- Reviews carousel mobile --- */
+    .review-slide {
+        padding: 16px 32px 24px;
+    }
+
+    .review-text {
+        font-size: 20px;
+    }
+
+    /* --- Footer mobile --- */
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .footer-legal-links {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    /* --- Section title mobile --- */
+    .section-title {
+        margin-bottom: 36px;
+    }
+
+    /* --- Slot grid mobile --- */
+    .slot-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* 4. Masquer le bouton CTA Mobile sur Ordinateur (> 768px) */
+@media (max-width: 480px) {
+    :root {
+        --container-padding: 18px;
+    }
+
+    .section {
+        padding: clamp(52px, 8vw, 80px) 0;
+    }
+
+    .review-slide {
+        padding: 16px 16px 24px;
+    }
+
+    .review-text {
+        font-size: 18px;
+    }
+
+    .reservation-form-wrapper {
+        padding: 22px 16px;
+    }
+
+    .footer-copy {
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-start;
+    }
+}
+
+/* --- Desktop only : masquer CTA mobile --- */
 @media (min-width: 769px) {
     .nav-menu__cta-mobile {
         display: none;
