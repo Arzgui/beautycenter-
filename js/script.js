@@ -1,17 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
     let deferredInstallPrompt = null;
 
-    // S'assurer que le showToast est disponible dès le début
-    // (Déplacé conceptuellement en haut ou déclaré en fonction classique pour le hoisting)
-
     if ('serviceWorker' in navigator) {
-        // Pas besoin d'attendre le 'load' complet s'il est déjà déclenché
         (async () => {
             try {
                 await navigator.serviceWorker.register('/service-worker.js');
                 console.log('Service worker enregistré.');
             } catch (error) {
-                console.warn('Impossible d’enregistrer le service worker.', error);
+                console.warn('Impossible d\'enregistrer le service worker.', error);
             }
         })();
     }
@@ -19,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         deferredInstallPrompt = event;
-        showToast('IS Beauty peut être installé comme une application mobile. Utilisez le menu du navigateur pour ajouter à l’écran d’accueil.', 'fa-download');
+        showToast('IS Beauty peut être installé comme une application mobile. Utilisez le menu du navigateur pour ajouter à l\'écran d\'accueil.', 'fa-download');
     });
 
     // 1. FIXED HEADER ON SCROLL
@@ -77,6 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Escape') {
                 setMobileMenu(false);
             }
+        });
+
+        // Fermer le menu au clic sur un lien de navigation (ancres internes)
+        navMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                setMobileMenu(false);
+            });
         });
     }
 
@@ -271,59 +274,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function subscribeUserToPush() {
-  try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    if (Notification.permission === 'denied') {
-      showToast('Notifications bloquées dans votre navigateur.', 'fa-ban');
-      return;
+        try {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+            if (Notification.permission === 'denied') {
+                showToast('Notifications bloquées dans votre navigateur.', 'fa-ban');
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+
+            if (!registration.active) {
+                console.warn('Service worker non actif, notifications push ignorées.');
+                return;
+            }
+
+            const vapidKey = await getVapidKey();
+            if (!vapidKey) return;
+
+            const existing = await registration.pushManager.getSubscription();
+            if (existing) {
+                await fetch('/api/notifications/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscription: existing }),
+                });
+                return existing;
+            }
+
+            if (Notification.permission !== 'granted') {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    showToast('Veuillez autoriser les notifications pour recevoir les confirmations.', 'fa-bell-slash');
+                    return null;
+                }
+            }
+
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey),
+            });
+            await fetch('/api/notifications/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subscription }),
+            });
+            showToast('Notifications activées.', 'fa-bell');
+            return subscription;
+        } catch (error) {
+            console.warn('Impossible d\'activer les notifications push:', error.message);
+            return null;
+        }
     }
-
-    // Attendre que le service worker soit actif
-    const registration = await navigator.serviceWorker.ready;
-
-    // Vérifier qu'il y a bien un service worker actif
-    if (!registration.active) {
-      console.warn('Service worker non actif, notifications push ignorées.');
-      return;
-    }
-
-    const vapidKey = await getVapidKey();
-    if (!vapidKey) return;
-
-    const existing = await registration.pushManager.getSubscription();
-    if (existing) {
-      await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: existing }),
-      });
-      return existing;
-    }
-
-    if (Notification.permission !== 'granted') {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        showToast('Veuillez autoriser les notifications pour recevoir les confirmations.', 'fa-bell-slash');
-        return null;
-      }
-    }
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
-    await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription }),
-    });
-    showToast('Notifications activées.', 'fa-bell');
-    return subscription;
-  } catch (error) {
-    console.warn('Impossible d\'activer les notifications push:', error.message);
-    return null;
-  }
-}
 
     // 7. STATIC BOOKING CALENDAR
     const bookingForm = document.getElementById('bookingForm');
@@ -412,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const serviceZone = serviceZoneInput.value;
             if (!serviceZone) {
-                calendarPrompt.textContent = 'Choisissez d’abord une zone pour voir les horaires disponibles.';
+                calendarPrompt.textContent = 'Choisissez d\'abord une zone pour voir les horaires disponibles.';
                 return;
             }
 
@@ -554,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await response.json();
                 if (!response.ok) {
-                    showToast(data.message || 'Erreur lors de l’envoi. Réessayez.', 'fa-times-circle');
+                    showToast(data.message || 'Erreur lors de l\'envoi. Réessayez.', 'fa-times-circle');
                     if (response.status === 409) renderSlots();
                     return;
                 }
@@ -593,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
             contactForm.reset();
-            showToast("Démo : votre message est validé. Aucun envoi réel n'a été effectué.", 'fa-check-circle');
+            showToast('Démo : votre message est validé. Aucun envoi réel n\'a été effectué.', 'fa-check-circle');
         });
     }
 
@@ -811,59 +812,61 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'ArrowLeft') prevImage();
         });
     }
+
     // 10. HEADER — BOUTON MON ESPACE
-(function initAuthNav() {
-    const navMenu = document.getElementById('navMenu');
-    const ul = navMenu?.querySelector('ul');
-    if (!ul) return;
+    (function initAuthNav() {
+        const navMenu = document.getElementById('navMenu');
+        const ul = navMenu?.querySelector('ul');
+        if (!ul) return;
 
-    const token = localStorage.getItem('client_token');
-    const user = JSON.parse(localStorage.getItem('client_user') || 'null');
+        const token = localStorage.getItem('client_token');
+        const user = JSON.parse(localStorage.getItem('client_user') || 'null');
 
-const li = document.createElement('li');
-li.className = 'nav-item-profile'; 
-li.style.display = 'flex';
-li.style.alignItems = 'center';
-li.style.marginLeft = 'auto'; // 🌟 Magie du CSS : pousse le bouton tout à droite de la barre !
-li.style.paddingLeft = '20px';
+        const li = document.createElement('li');
+        li.className = 'nav-item-profile';
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.marginLeft = 'auto';
+        li.style.paddingLeft = '20px';
 
-if (token && user) {
-  const initials = (user.name || 'M').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const firstName = user.name.split(' ')[0];
-  
-  li.innerHTML = `
-    <a href="espace-client.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: rgba(26, 236, 255, 0.05); border: 1px solid rgba(26, 236, 255, 0.2); border-radius: 50px; text-decoration: none; transition: all 0.3s ease;">
-      <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-cyan); color: #070b10; font-size: 11px; font-weight: 700; flex-shrink: 0; box-shadow: 0 0 10px rgba(26, 236, 255, 0.3);">
-        ${initials}
-      </span>
-      <div style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
-        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--color-muted);">Mon Compte</span>
-        <span style="font-size: 13px; font-weight: 600; color: #fff; text-transform: capitalize;">${firstName.toLowerCase()}</span>
-      </div>
-    </a>`;
-} else {
-  // Version déconnectée assortie
-  li.innerHTML = `
-    <a href="compte.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--color-cyan); color: #070b10; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 15px rgba(26, 236, 255, 0.2);">
-      <i class="fas fa-user"></i> Connexion
-    </a>`;
-}
+        if (token && user) {
+            const initials = (user.name || 'M').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+            const firstName = user.name.split(' ')[0];
 
-ul.appendChild(li);
-// Après ul.appendChild(li);
-li.addEventListener('click', (e) => {
-    e.stopPropagation();
-});
-})();
-// 11. PRÉ-REMPLISSAGE FORMULAIRE RDV SI CONNECTÉ
-(function prefillBookingForm() {
-    const user = JSON.parse(localStorage.getItem('client_user') || 'null');
-    if (!user) return;
+            li.innerHTML = `
+                <a href="espace-client.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: rgba(176, 141, 106, 0.08); border: 1px solid rgba(176, 141, 106, 0.25); border-radius: 50px; text-decoration: none; transition: all 0.3s ease;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-gold); color: #F9F7F3; font-size: 11px; font-weight: 700; flex-shrink: 0;">
+                        ${initials}
+                    </span>
+                    <div style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">
+                        <span style="font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--color-muted);">Mon Compte</span>
+                        <span style="font-size: 13px; font-weight: 600; color: var(--color-ink); text-transform: capitalize;">${firstName.toLowerCase()}</span>
+                    </div>
+                </a>`;
+        } else {
+            li.innerHTML = `
+                <a href="compte.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--color-ink); color: var(--color-bg); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 3px; text-decoration: none; transition: all 0.3s ease;">
+                    <i class="fas fa-user"></i> Connexion
+                </a>`;
+        }
 
-    const nameField = document.getElementById('bName');
-    const emailField = document.getElementById('bEmail');
+        ul.appendChild(li);
 
-    if (nameField && !nameField.value) nameField.value = user.name || '';
-    if (emailField && !emailField.value) emailField.value = user.email || '';
-})();
+        // Empêche le clic sur le bouton profil de fermer le menu burger
+        li.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    })();
+
+    // 11. PRÉ-REMPLISSAGE FORMULAIRE RDV SI CONNECTÉ
+    (function prefillBookingForm() {
+        const user = JSON.parse(localStorage.getItem('client_user') || 'null');
+        if (!user) return;
+
+        const nameField = document.getElementById('bName');
+        const emailField = document.getElementById('bEmail');
+
+        if (nameField && !nameField.value) nameField.value = user.name || '';
+        if (emailField && !emailField.value) emailField.value = user.email || '';
+    })();
 });
