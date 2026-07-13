@@ -1,7 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { sendReminderSms } from '../utils/twilio.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyAdmin } from '../middleware/auth.js';
 import bodyParser from 'body-parser';
 
 const router = express.Router();
@@ -15,7 +15,7 @@ router.post('/twilio-webhook', async (req, res) => {
 
 router.post(
   '/send-reminder',
-  verifyToken,
+  verifyAdmin,
   body('phone').trim().notEmpty(),
   body('name').trim().notEmpty(),
   body('appointmentDate').isISO8601(),

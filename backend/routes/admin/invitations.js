@@ -3,6 +3,7 @@ import { db } from '../../config/database.js';
 import { sendBrevoEmail } from '../../utils/brevo.js';
 
 const router = express.Router();
+const SITE_URL = process.env.SITE_URL || 'http://localhost:4000';
 
 router.post('/invite', async (req, res, next) => {
   try {
@@ -19,7 +20,7 @@ router.post('/invite', async (req, res, next) => {
         <h1 style="font-size:24px;color:#fff;margin-bottom:8px">Bonjour ${name} ✦</h1>
         <p style="color:#7488A3;margin-bottom:24px">Vos séances chez IS Beauty vous donnent droit à des récompenses exclusives.</p>
         <p style="margin-bottom:24px">Rejoignez votre <strong style="color:#B6F4FF">espace fidélité</strong> pour suivre vos points, débloquer des avantages et gérer vos rendez-vous en ligne.</p>
-        <a href="http://localhost:4000/compte.html" style="display:inline-block;padding:14px 28px;background:#B6F4FF;color:#070B14;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;border-radius:8px;text-decoration:none">
+        <a href="${SITE_URL}/compte.html" style="display:inline-block;padding:14px 28px;background:#B6F4FF;color:#070B14;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;border-radius:8px;text-decoration:none">
           Créer mon espace
         </a>
         <p style="margin-top:32px;font-size:12px;color:#7488A3">IS Beauty — Épilation Médico Laser ICE — Forbach</p>

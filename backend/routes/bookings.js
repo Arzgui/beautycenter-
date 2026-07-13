@@ -217,7 +217,10 @@ router.post(
 
 router.get('/', verifyToken, async (req, res, next) => {
   try {
-    const bookings = await db.all('SELECT * FROM bookings ORDER BY appointmentDate, appointmentStart');
+    const bookings = await db.all(
+      'SELECT * FROM bookings WHERE clientEmail = ? ORDER BY appointmentDate, appointmentStart',
+      req.user.email
+    );
     res.json({ bookings });
   } catch (error) {
     next(error);

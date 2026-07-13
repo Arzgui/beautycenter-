@@ -41,20 +41,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. MOBILE BURGER MENU
     const burgerToggle = document.getElementById('burgerToggle');
     const navMenu = document.getElementById('navMenu');
+    const navOverlay = document.getElementById('navOverlay');
 
     if (burgerToggle && navMenu) {
         burgerToggle.setAttribute('aria-expanded', 'false');
         burgerToggle.setAttribute('aria-controls', 'navMenu');
 
         function setMobileMenu(open) {
+            const wasOpen = navMenu.classList.contains('open');
             navMenu.classList.toggle('open', open);
+            burgerToggle.classList.toggle('open', open);
             burgerToggle.setAttribute('aria-expanded', String(open));
+            if (navOverlay) navOverlay.classList.toggle('open', open);
+            document.body.style.overflow = open ? 'hidden' : '';
 
-            const lines = burgerToggle.querySelectorAll('.burger-line');
-            if (lines.length >= 3) {
-                lines[0].style.transform = open ? 'rotate(45deg) translate(5px, 5px)' : 'none';
-                lines[1].style.opacity = open ? '0' : '1';
-                lines[2].style.transform = open ? 'rotate(-45deg) translate(6px, -6px)' : 'none';
+            if (open) {
+                const firstLink = navMenu.querySelector('a');
+                if (firstLink) firstLink.focus();
+            } else if (wasOpen) {
+                // Réinitialise les sous-menus dépliés pour repartir d'un panneau propre à la prochaine ouverture
+                navMenu.querySelectorAll('.nav-item-dropdown.active').forEach(dd => {
+                    dd.classList.remove('active');
+                    const ddLink = dd.querySelector('.nav-link');
+                    if (ddLink) ddLink.setAttribute('aria-expanded', 'false');
+                });
+                if (navMenu.contains(document.activeElement)) {
+                    burgerToggle.focus();
+                }
             }
         }
 
@@ -62,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             setMobileMenu(!navMenu.classList.contains('open'));
         });
+
+        if (navOverlay) {
+            navOverlay.addEventListener('click', () => setMobileMenu(false));
+        }
 
         document.addEventListener('click', (e) => {
             if (!navMenu.contains(e.target) && !burgerToggle.contains(e.target)) {
@@ -75,8 +92,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Ferme le panneau mobile (et débloque le scroll) si la fenêtre repasse en desktop
+        const desktopMediaQuery = window.matchMedia('(min-width: 769px)');
+        desktopMediaQuery.addEventListener('change', (e) => {
+            if (e.matches) setMobileMenu(false);
+        });
+
         // Fermer le menu au clic sur un lien de navigation (ancres internes)
+        // On exclut les liens qui déclenchent un sous-menu (gérés par la section DROPDOWNS ON MOBILE ci-dessous)
         navMenu.querySelectorAll('a').forEach(link => {
+            const isDropdownToggle = link.classList.contains('nav-link') && link.closest('.nav-item-dropdown');
+            if (isDropdownToggle) return;
+
             link.addEventListener('click', () => {
                 setMobileMenu(false);
             } );

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'is-beauty-pwa-v2';
+const CACHE_NAME = 'is-beauty-pwa-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/offline.html',
-  '/css/style.css',
+  '/css/laser-premium-v2.css',
   '/js/script.js',
   '/manifest.webmanifest',
   '/assets/pwa-icon.svg',
