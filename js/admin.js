@@ -6,19 +6,8 @@ let pendingDeleteId = null;
 let editingBookingId = null;
 let selectedBookingIds = new Set();
 
-const SERVICES = {
-  bilan: { label: 'Bilan Médico Laser ICE', duration: 30, price: 0 },
-  visage: { label: 'Visage & cou', duration: 30, price: 40 },
-  aisselles: { label: 'Aisselles', duration: 30, price: 20 },
-  maillot: { label: 'Maillot', duration: 45, price: 50 },
-  jambes: { label: 'Jambes & bras', duration: 45, price: 30 },
-  bras: { label: 'Bras / Demi-bras', duration: 45, price: 28 },
-  dos: { label: 'Dos / ventre', duration: 60, price: 50 },
-  corps: { label: 'Corps complet', duration: 60, price: 150 },
-  forfait: { label: 'Forfait multi-zones', duration: 120, price: 120 },
-};
-
-const SLOTS = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+let SERVICES = {};
+let registeredClients = [];
 
 // ── AUTH ──
 async function login() {
@@ -39,10 +28,10 @@ async function login() {
     if (!res.ok) { err.textContent = data.message || 'Identifiants invalides.'; return; }
     if (data.twoFactorRequired) {
       const code = window.prompt('Code de votre application de double authentification :');
-      if (!code) throw new Error('Connexion annulee.');
+      if (!code) return;
       const verification = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ challengeToken: data.challengeToken, token: code }) });
       data = await verification.json();
-      if (!verification.ok) throw new Error(data.message || 'Code invalide.');
+      if (!verification.ok) { err.textContent = data.message || 'Code invalide.'; err.className += ' show'; return; }
     }
     if (data.token) {
       token = data.token;
@@ -73,6 +62,7 @@ function showApp(user) {
   loadDashboard();
   loadBookings();
   loadClients();
+  loadConfiguration();
 }
 
 async function tryAutoLogin() {
@@ -86,6 +76,7 @@ async function tryAutoLogin() {
 
 // ── NAVIGATION ──
 function showPage(name, tab) {
+  if (name === 'configuration') loadConfiguration();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
@@ -258,7 +249,8 @@ async function updateStatus(id, status) {
 }
 
 // ── EDIT MODAL ──
-function openEditModal(id) {
+async function openEditModal(id) {
+  if (!await loadConfiguration()) return;
   const b = allBookings.find(b => b.id === id);
   if (!b) return;
   editingBookingId = id;
@@ -270,14 +262,17 @@ function openEditModal(id) {
 
   const serviceSelect = document.getElementById('editService');
   serviceSelect.innerHTML = Object.entries(SERVICES).map(([key, s]) =>
-    `<option value="${key}" ${b.serviceZone === key ? 'selected' : ''}>${s.label}</option>`
+    `<option value="${esc(key)}" ${b.serviceZone === key ? 'selected' : ''}>${esc(s.label)}</option>`
   ).join('');
 
-  const slotSelect = document.getElementById('editSlot');
-  slotSelect.innerHTML = SLOTS.map(slot =>
-    `<option value="${slot}" ${b.appointmentStart === slot ? 'selected' : ''}>${slot}</option>`
-  ).join('');
-
+  document.getElementById('editSlot').value = b.appointmentStart;
+  const accountSelect = document.getElementById('editAccount');
+  accountSelect.replaceChildren(new Option('Invitee ? aucun compte associe', ''));
+  for (const account of registeredClients.filter(account => account.emailVerified || account.id === b.userId)) {
+    accountSelect.add(new Option(account.email, account.id));
+  }
+  if (b.userId && !Array.from(accountSelect.options).some(option => option.value === b.userId)) accountSelect.add(new Option(b.clientEmail, b.userId));
+  accountSelect.value = b.userId || '';
   document.getElementById('editModal').classList.add('open');
 }
 
@@ -295,9 +290,6 @@ async function saveEdit() {
   const serviceZone = document.getElementById('editService').value;
   const service = SERVICES[serviceZone];
   const appointmentStart = document.getElementById('editSlot').value;
-  const startMinutes = timeToMinutes(appointmentStart);
-  const endMinutes = startMinutes + service.duration;
-  const appointmentEnd = minutesToTime(endMinutes);
 
   const payload = {
     clientName: document.getElementById('editName').value.trim(),
@@ -307,8 +299,8 @@ async function saveEdit() {
     serviceType: service.label,
     appointmentDate: document.getElementById('editDate').value,
     appointmentStart,
-    appointmentEnd,
-    price: service.price,
+    userId: document.getElementById('editAccount').value || null,
+    price: allBookings.find(booking => booking.id === editingBookingId)?.serviceZone === serviceZone ? allBookings.find(booking => booking.id === editingBookingId).price : service.price,
   };
 
   try {
@@ -489,7 +481,7 @@ function statusLabel(s) {
 
 function esc(str) {
   if (!str) return '—';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 let toastTimer;
@@ -527,7 +519,59 @@ async function sendInvitation(email, name, btn) {
 }
 
 // ── EVENT LISTENERS ──
+async function adminRequest(path, options = {}) {
+  const response = await fetch(`${API}/api/admin/${path}`, { ...options, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers }, cache: 'no-store' });
+  const data = response.status === 204 ? {} : await response.json();
+  if (!response.ok) throw new Error(data.message || data.error || 'Operation refusee.');
+  return data;
+}
+
+async function loadConfiguration() {
+  try {
+    const [catalogue, blocks, clients] = await Promise.all([adminRequest('schedules'), adminRequest('unavailability'), adminRequest('clients')]);
+    SERVICES = Object.fromEntries(catalogue.schedules.map(service => [service.zone, service]));
+    registeredClients = clients.clients;
+    const tbody = document.getElementById('servicesBody');
+    tbody.innerHTML = catalogue.schedules.map(service => `<tr data-service="${esc(service.id)}"><td>${esc(service.zone)}</td><td><input data-label value="${esc(service.label)}" maxlength="150" /></td><td><input data-duration type="number" min="15" max="600" value="${service.duration}" /></td><td><input data-price type="number" min="0" value="${service.price}" /></td><td><button class="btn btn-primary btn-sm" data-save>Enregistrer</button>${service.active ? '<button class="btn btn-danger btn-sm" data-disable>Desactiver</button>' : 'Desactivee'}</td></tr>`).join('');
+    tbody.querySelectorAll('[data-service]').forEach(row => {
+      const service = catalogue.schedules.find(item => item.id === row.dataset.service);
+      row.querySelector('[data-save]').addEventListener('click', async () => {
+        try {
+          await adminRequest(`schedules/${encodeURIComponent(service.id)}`, { method: 'PATCH', body: JSON.stringify({ zone: service.zone, label: row.querySelector('[data-label]').value, duration: Number(row.querySelector('[data-duration]').value), price: Number(row.querySelector('[data-price]').value) }) });
+          toast('Prestation mise a jour.'); await loadConfiguration();
+        } catch (error) { toast(error.message, true); }
+      });
+      row.querySelector('[data-disable]')?.addEventListener('click', async () => {
+        try { await adminRequest(`schedules/${encodeURIComponent(service.id)}`, { method: 'DELETE' }); await loadConfiguration(); }
+        catch (error) { toast(error.message, true); }
+      });
+    });
+    const blocked = document.getElementById('unavailabilityBody');
+    blocked.innerHTML = blocks.unavailability.map(block => `<tr><td>${esc(block.appointmentDate)}</td><td>${esc(block.appointmentStart)} - ${esc(block.appointmentEnd)}</td><td>${esc(block.reason)}</td><td><button class="btn btn-danger btn-sm" data-unblock="${esc(block.id)}">Liberer</button></td></tr>`).join('');
+    blocked.querySelectorAll('[data-unblock]').forEach(button => button.addEventListener('click', async () => {
+      try { await adminRequest(`unavailability/${encodeURIComponent(button.dataset.unblock)}`, { method: 'DELETE' }); await loadConfiguration(); }
+      catch (error) { toast(error.message, true); }
+    }));
+    return true;
+  } catch (error) { toast(error.message, true); return false; }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('refreshConfiguration').addEventListener('click', loadConfiguration);
+  document.getElementById('newServiceForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+      await adminRequest('schedules', { method: 'POST', body: JSON.stringify({ zone: document.getElementById('newServiceZone').value, label: document.getElementById('newServiceLabel').value, duration: Number(document.getElementById('newServiceDuration').value), price: Number(document.getElementById('newServicePrice').value) }) });
+      event.target.reset(); await loadConfiguration();
+    } catch (error) { toast(error.message, true); }
+  });
+  document.getElementById('unavailabilityForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+      await adminRequest('unavailability', { method: 'POST', body: JSON.stringify({ appointmentDate: document.getElementById('blockedDate').value, appointmentStart: document.getElementById('blockedStart').value, appointmentEnd: document.getElementById('blockedEnd').value, reason: document.getElementById('blockedReason').value }) });
+      event.target.reset(); await loadConfiguration();
+    } catch (error) { toast(error.message, true); }
+  });
   document.getElementById('loginBtn').addEventListener('click', login);
   document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);

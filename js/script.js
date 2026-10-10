@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 7. STATIC BOOKING CALENDAR
+    // 7. DYNAMIC BOOKING CALENDAR
     const bookingForm = document.getElementById('bookingForm');
     if (bookingForm) {
         const calendarMonth = document.getElementById('calendarMonth');
@@ -366,11 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const appointmentStartInput = document.getElementById('bAppointmentStart');
         const appointmentPriceInput = document.getElementById('bPrice');
         const serviceZoneInput = document.getElementById('bZone');
-        const availableSlots = ['09:00', '10:30', '14:00', '15:30', '17:00'];
-        const servicePrices = {
-            bilan: 0, visage: 40, aisselles: 20, maillot: 50, jambes: 30, bras: 28, dos: 50, corps: 150, forfait: 120,
-        };
-        const today = new Date();
+        let availableSlots = [];
+        let servicePrices = {};
+        let selectedDuration = null;
+        const today = new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) + 'T00:00:00');
         today.setHours(0, 0, 0, 0);
         const firstDisplayedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const lastDisplayedMonth = new Date(today.getFullYear(), today.getMonth() + 2, 1);
@@ -408,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function getUnavailableSlots(date, serviceZone) {
-            if (!date || !serviceZone) return [];
+            if (!date || !serviceZone) return null;
             try {
                 const params = new URLSearchParams({
                     date: formatDateForApi(date),
@@ -418,17 +417,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { Accept: 'application/json' },
                     cache: 'no-store',
                 });
-                if (!response.ok) return [];
+                if (!response.ok) throw new Error('Disponibilites indisponibles');
                 const data = await response.json();
-                return Array.isArray(data.unavailableSlots) ? data.unavailableSlots : [];
+                if (!Array.isArray(data.slots) || !Array.isArray(data.unavailableSlots)) throw new Error('Reponse de disponibilite invalide');
+                return data;
             } catch (error) {
                 console.warn('Disponibilités non récupérées:', error);
-                return [];
+                return null;
             }
         }
 
-        async function renderSlots() {
+        async function renderSlots(preserveSelection = false) {
             const requestId = ++slotsRequestId;
+            const previousSlot = preserveSelection ? selectedSlot : '';
             calendarSlots.innerHTML = '';
             selectedSlot = '';
             updateSelectedDate();
@@ -445,8 +446,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             calendarPrompt.textContent = 'Chargement des créneaux disponibles...';
-            const unavailableSlots = await getUnavailableSlots(selectedDay, serviceZone);
+            const availability = await getUnavailableSlots(selectedDay, serviceZone);
             if (requestId !== slotsRequestId) return;
+            if (!availability) { calendarPrompt.textContent = 'Impossible de charger les disponibilites. Veuillez reessayer.'; return; }
+            availableSlots = availability.slots;
+            selectedDuration = availability.duration;
+            servicePrices[serviceZone] = availability.price;
+            const unavailableSlots = availability.unavailableSlots;
+            if (previousSlot && availableSlots.includes(previousSlot) && !unavailableSlots.includes(previousSlot)) selectedSlot = previousSlot;
+            updateSelectedDate();
 
             const availableSlotCount = availableSlots.filter(slot => !unavailableSlots.includes(slot)).length;
             calendarPrompt.textContent = availableSlotCount > 0
@@ -459,7 +467,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.type = 'button';
                 button.className = 'slot-button';
                 button.disabled = isUnavailable;
-                button.setAttribute('aria-pressed', 'false');
+                button.setAttribute('aria-pressed', String(slot === selectedSlot));
+                if (slot === selectedSlot) button.classList.add('selected');
                 if (isUnavailable) {
                     button.classList.add('unavailable');
                     button.setAttribute('aria-disabled', 'true');
@@ -565,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (appointmentPriceInput) appointmentPriceInput.value = String(price);
 
-            const payload = { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart, price };
+            const payload = { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart, price, duration: selectedDuration };
             const apiUrl = `${getApiBaseUrl()}/api/bookings`;
             const submitButton = bookingForm.querySelector('button[type="submit"]');
             if (submitButton) {
@@ -576,7 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(localStorage.getItem('client_token') && (() => { try { return JSON.parse(localStorage.getItem('client_user') || '{}').email?.toLowerCase() === clientEmail.toLowerCase(); } catch { return false; } })()
+                            ? { Authorization: `Bearer ${localStorage.getItem('client_token')}` } : {}),
+                    },
                     body: JSON.stringify(payload),
                 });
 
@@ -609,6 +622,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        async function refreshServices() {
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/api/bookings/services`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Prestations indisponibles');
+                const { services } = await response.json();
+                const previous = serviceZoneInput.value;
+                serviceZoneInput.replaceChildren(new Option('Choisissez une prestation', ''));
+                servicePrices = {};
+                for (const service of services) {
+                    serviceZoneInput.add(new Option(`${service.label} (${service.duration} min)`, service.zone));
+                    servicePrices[service.zone] = service.price;
+                }
+                serviceZoneInput.value = services.some(service => service.zone === previous) ? previous : '';
+                if (selectedDay) await renderSlots(true);
+            } catch { calendarPrompt.textContent = 'Impossible de charger les prestations. Veuillez reessayer.'; }
+        }
+        refreshServices();
+        // Refresh while the page is visible; the server remains authoritative on submission.
+        setInterval(() => { if (!document.hidden) refreshServices(); }, 30000);
+        window.addEventListener('focus', refreshServices);
 
         serviceZoneInput.addEventListener('change', () => {
             updateSelectedDate();

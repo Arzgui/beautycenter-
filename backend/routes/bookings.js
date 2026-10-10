@@ -1,29 +1,18 @@
+import { getService } from '../utils/services.js';
 import { escapeHtml } from '../utils/html.js';
-import { parisDate } from '../utils/dates.js';
+import { parisDate, parisMinutes } from '../utils/dates.js';
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../config/database.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, optionalToken } from '../middleware/auth.js';
 import { sendConfirmationSms } from '../utils/twilio.js';
 import { sendBrevoEmail, sendBrevoSms } from '../utils/brevo.js';
 import { broadcastPushNotification } from '../utils/push.js';
 
 const router = express.Router();
 
-const serviceDurations = {
-  bilan: { duration: 30, price: 0, label: 'Bilan Médico Laser ICE' },
-  visage: { duration: 30, price: 40, label: 'Visage & cou' },
-  aisselles: { duration: 30, price: 20, label: 'Aisselles' },
-  maillot: { duration: 45, price: 50, label: 'Maillot' },
-  jambes: { duration: 45, price: 30, label: 'Jambes & bras' },
-  bras: { duration: 45, price: 28, label: 'Bras / Demi-bras' },
-  dos: { duration: 60, price: 50, label: 'Dos / ventre' },
-  corps: { duration: 60, price: 150, label: 'Corps complet' },
-  forfait: { duration: 120, price: 120, label: 'Forfait multi-zones' },
-};
-
-const publicSlots = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+const publicSlots = Array.from({ length: 40 }, (_, index) => formatTime(9 * 60 + index * 15));
 
 function parseTime(dateString) {
   const [hours, minutes] = dateString.split(':').map(Number);
@@ -77,45 +66,44 @@ async function findOverlappingBooking(appointmentDateISO, startMinutes, endMinut
   });
 }
 
+router.get('/services', async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ services: await db.all('SELECT zone, label, duration, price FROM schedules WHERE active = 1 ORDER BY label') });
+  } catch (error) { next(error); }
+});
+
 router.get('/availability', async (req, res, next) => {
   try {
     const { date, serviceZone } = req.query;
-    const service = serviceDurations[serviceZone];
+    const service = await getService(String(serviceZone || ''));
     const appointmentDate = parseAppointmentDate(String(date || ''));
-
     res.set('Cache-Control', 'no-store');
-
-    if (!appointmentDate || !service) {
-      return res.status(400).json({ message: 'Paramètres de disponibilité invalides.' });
-    }
-
-    if (appointmentDate < getTodayUtc() || isClosedDay(appointmentDate)) {
-      return res.json({ unavailableSlots: publicSlots });
-    }
-
-    const unavailableSlots = [];
-    for (const slot of publicSlots) {
-      const startMinutes = parseTime(slot);
-      const endMinutes = startMinutes + service.duration;
-      if (endMinutes > 19 * 60 || await findOverlappingBooking(date, startMinutes, endMinutes)) {
-        unavailableSlots.push(slot);
-      }
-    }
-
-    res.json({ unavailableSlots });
-  } catch (error) {
-    next(error);
-  }
+    if (!appointmentDate || !service) return res.status(400).json({ message: 'Parametres de disponibilite invalides.' });
+    const busy = await db.all(
+      "SELECT appointmentStart, appointmentEnd FROM bookings WHERE appointmentDate = ? AND status != 'cancelled' UNION ALL SELECT appointmentStart, appointmentEnd FROM unavailability WHERE appointmentDate = ?", date, date
+    );
+    const closed = appointmentDate < getTodayUtc() || isClosedDay(appointmentDate);
+    const unavailableSlots = publicSlots.filter(slot => {
+      const start = parseTime(slot), end = start + service.duration;
+      return closed || end > 19 * 60 || (date === parisDate() && start <= parisMinutes()) ||
+        busy.some(range => rangesOverlap(start, end, parseTime(range.appointmentStart), parseTime(range.appointmentEnd)));
+    });
+    res.json({ slots: publicSlots, availableSlots: publicSlots.filter(slot => !unavailableSlots.includes(slot)), unavailableSlots, duration: service.duration, price: service.price });
+  } catch (error) { next(error); }
 });
 
 router.post(
   '/',
+  optionalToken,
   body('clientName').trim().notEmpty(),
   body('clientEmail').isEmail(),
   body('clientPhone').trim().notEmpty(),
-  body('serviceZone').isIn(Object.keys(serviceDurations)),
+  body('serviceZone').isString().notEmpty(),
   body('appointmentDate').isISO8601({ strict: true }),
   body('appointmentStart').matches(/^([01]\d|2[0-3]):([0-5]\d)$/),
+  body('userId').not().exists(),
+  body('duration').optional().isInt({ min: 15, max: 600 }),
   body('price').optional().isInt({ min: 0 }),
   async (req, res, next) => {
     try {
@@ -137,13 +125,20 @@ router.post(
       }
 
       const appointmentDateISO = appointmentDate;
-      const service = serviceDurations[serviceZone];
+      const service = await getService(serviceZone);
+      if (!service) return res.status(400).json({ message: 'Prestation inconnue ou desactivee.' });
+      if (req.body.duration != null && Number(req.body.duration) !== service.duration) return res.status(409).json({ message: 'La duree de la prestation a change. Veuillez choisir a nouveau un horaire.' });
+      let userId = null;
+      if (req.user) {
+        if (req.user.email.toLowerCase() !== clientEmail.toLowerCase()) return res.status(403).json({ message: 'Le compte connecte ne correspond pas a cette adresse email.' });
+        if (req.user.emailVerified) userId = req.user.id;
+      }
       const duration = service.duration;
       const price = service.price;
       const startMinutes = parseTime(appointmentStart);
       const endMinutes = startMinutes + duration;
 
-      if (startMinutes < 9 * 60 || endMinutes > 19 * 60) {
+      if (startMinutes % 15 !== 0 || startMinutes < 9 * 60 || endMinutes > 19 * 60 || (appointmentDate === parisDate() && startMinutes <= parisMinutes())) {
         return res.status(400).json({ message: 'Heure de rendez-vous hors des horaires 9h-19h.' });
       }
 
@@ -158,8 +153,9 @@ router.post(
       const cancellationToken = uuidv4();
 
       await db.run(
-        'INSERT INTO bookings (id, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt, cancellationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO bookings (id, userId, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt, cancellationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         id,
+        userId,
         clientName,
         clientEmail,
         clientPhone,
@@ -224,8 +220,8 @@ router.get('/', verifyToken, async (req, res, next) => {
     const user = await db.get('SELECT email, emailVerified FROM users WHERE id = ?', req.user.id);
     if (!user?.emailVerified) return res.status(403).json({ message: 'Veuillez verifier votre adresse email.' });
     const bookings = await db.all(
-      'SELECT id, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, status, price, pointsEarned FROM bookings WHERE clientEmail = ? ORDER BY appointmentDate, appointmentStart',
-      user.email
+      'SELECT id, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, status, price, pointsEarned FROM bookings WHERE userId = ? OR (userId IS NULL AND lower(clientEmail) = lower(?)) ORDER BY appointmentDate, appointmentStart',
+      req.user.id, user.email
     );
     res.json({ bookings });
   } catch (error) {
@@ -248,13 +244,14 @@ router.post(
         return res.status(404).json({ message: 'Réservation introuvable.' });
       }
 
+      if (booking.status === 'completed') return res.status(409).json({ message: 'Un rendez-vous termine ne peut plus etre annule.' });
       if (booking.status === 'cancelled') {
         return res.status(409).json({ message: 'Ce rendez-vous est déjà annulé.' });
       }
 
       const cancelledAt = new Date().toISOString();
       const cancelled = await db.run(
-        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ? AND status != 'cancelled'",
+        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ? AND status IN ('pending', 'confirmed')",
         cancelledAt,
         cancelledAt,
         booking.id

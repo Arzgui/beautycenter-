@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const clients = await db.all('SELECT id, email, name, points, createdAt FROM users WHERE role = ?', 'client');
+    const clients = await db.all('SELECT id, email, name, points, emailVerified, createdAt FROM users WHERE role = ?', 'client');
     res.json({ clients });
   } catch (error) {
     next(error);

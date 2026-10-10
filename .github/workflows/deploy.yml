@@ -1,4 +1,4 @@
-name: Deploy IS Beauty
+name: Test IS Beauty
 on:
   pull_request:
     branches:
@@ -30,23 +30,3 @@ jobs:
       - name: Run tests
         working-directory: backend
         run: npm test
-
-  deploy:
-    name: Deploy to VPS
-    needs: test
-    runs-on: ubuntu-latest
-    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /var/www/isbeauty/backend
-            git fetch origin main
-            git reset --hard origin/main
-            npm install
-            pm2 restart isbeauty

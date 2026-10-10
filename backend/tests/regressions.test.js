@@ -33,6 +33,7 @@ beforeEach(async () => {
   await db.run('DELETE FROM bookings');
   await db.run('DELETE FROM password_resets');
   await db.run('DELETE FROM users');
+  await db.run("INSERT INTO users(id,email,passwordHash,role,emailVerified,createdAt) VALUES ('admin','admin@example.com','test','admin',1,'2026-01-01')");
   jest.clearAllMocks();
   sendBrevoEmail.mockReset().mockResolvedValue(true);
   sendBrevoSms.mockReset().mockResolvedValue(true);
@@ -45,7 +46,10 @@ async function user(extra = {}) {
   return jwt.sign({ id: userId, email: payload.clientEmail, role: 'client' }, process.env.JWT_SECRET);
 }
 async function create(extra = {}) {
-  const response = await request(app).post('/bookings').send({ ...payload, ...extra });
+  const account = await db.get('SELECT id FROM users WHERE id = ?', userId);
+  const query = request(app).post('/bookings');
+  if (account) query.set('Authorization', 'Bearer ' + jwt.sign({ id: userId }, process.env.JWT_SECRET));
+  const response = await query.send({ ...payload, ...extra });
   expect(response.status).toBe(201);
   return db.get('SELECT * FROM bookings WHERE id = ?', response.body.bookingId);
 }

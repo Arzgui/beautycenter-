@@ -1,3 +1,5 @@
+> Instantan? historique : les corrections compl?mentaires et les r?sultats actuels sont d?crits dans [PR1_FOLLOWUP.md](PR1_FOLLOWUP.md), avec la proc?dure [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md).
+
 # Revue de securite IS Beauty
 
 Corrections preparees le 10 octobre 2026. Architecture Node.js / Express / SQLite conservee. Aucun secret reel ni aucune base de production ouverts ou modifies. Aucune fusion ni aucun deploiement effectues.

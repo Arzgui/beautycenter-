@@ -105,7 +105,7 @@ router.post(
       }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role, sessionVersion: user.sessionVersion },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN },
       );
@@ -163,7 +163,7 @@ router.post(
       const consumed = await db.run('UPDATE users SET loginChallenge = NULL WHERE id = ? AND loginChallenge = ?', user.id, challenge.nonce);
       if (!consumed.changes) return res.status(401).json({ message: 'Session 2FA already used.' });
       const authToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role, sessionVersion: user.sessionVersion },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN },
       );

@@ -1,3 +1,4 @@
+import unavailabilityRoutes from './routes/admin/unavailability.js';
 import { protectSourceFiles } from './middleware/publicFiles.js';
 import express from 'express';
 import dotenv from 'dotenv';
@@ -171,6 +172,7 @@ app.use('/api/admin/dashboard', verifyAdmin, adminDashboardRoutes);
 app.use('/api/admin/clients', verifyAdmin, usersAdminRoutes);
 app.use('/api/admin/bookings', verifyAdmin, adminBookingsRoutes);
 app.use('/api/admin/schedules', verifyAdmin, schedulesAdminRoutes);
+app.use('/api/admin/unavailability', verifyAdmin, unavailabilityRoutes);
 app.use('/api/admin/invitations', verifyAdmin, invitationsAdminRoutes);
 
 

@@ -10,3 +10,8 @@ export function validAppointment(date, start, end) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date || '') && !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10) === date &&
     /^([01]\d|2[0-3]):[0-5]\d$/.test(start || '') && /^([01]\d|2[0-3]):[0-5]\d$/.test(end || '') && start >= '09:00' && end <= '19:00' && start < end && new Date(date).getUTCDay() !== 0;
 }
+
+export function parisMinutes(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  return Number(parts.find(part => part.type === 'hour').value) * 60 + Number(parts.find(part => part.type === 'minute').value);
+}

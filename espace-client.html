@@ -883,17 +883,40 @@ function renderTiers(points) {
 }
 
 // ── LOAD BOOKINGS ──
+function escapeBookingText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
 async function loadBookings() {
   try {
     const res = await fetch(`${API}/api/bookings`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
-    const bookings = (data.bookings || []).filter(b => b.clientEmail === user?.email);
+    if (!res.ok) {
+      const list = document.getElementById('rdvList');
+      list.textContent = data.message || 'Impossible de charger les rendez-vous.';
+      document.getElementById('nextRdvContainer').textContent = data.message || '';
+      if (res.status === 403) {
+        const button = document.createElement('button');
+        button.className = 'btn btn-outline';
+        button.textContent = 'Renvoyer le lien de verification';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const sent = await fetch(`${API}/api/auth/resend-verification`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email:user.email}) });
+            button.textContent = sent.ok ? 'Consultez votre boite email' : 'Reessayez plus tard';
+          } catch { button.textContent = 'Serveur inaccessible'; }
+          finally { button.disabled = false; }
+        });
+        list.appendChild(button);
+      }
+      return;
+    }
+    const bookings = data.bookings || [];
 
     document.getElementById('dashSessions').textContent = bookings.filter(b => b.status === 'completed').length;
 
-    const now = new Date().toISOString().split('T')[0];
-    const upcoming = bookings.filter(b => b.appointmentDate >= now && b.status !== 'cancelled').sort((a,b) => a.appointmentDate.localeCompare(b.appointmentDate));
-    const past = bookings.filter(b => b.appointmentDate < now || b.status === 'completed').sort((a,b) => b.appointmentDate.localeCompare(a.appointmentDate));
+    const now = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const upcoming = bookings.filter(b => b.appointmentDate >= now && !['cancelled','completed'].includes(b.status)).sort((a,b) => a.appointmentDate.localeCompare(b.appointmentDate));
+    const past = bookings.filter(b => b.appointmentDate < now || ['completed','cancelled'].includes(b.status)).sort((a,b) => b.appointmentDate.localeCompare(a.appointmentDate));
 
     // Next RDV
     const nextContainer = document.getElementById('nextRdvContainer');
@@ -904,7 +927,7 @@ async function loadBookings() {
         <div class="next-rdv-card">
           <div class="next-rdv-icon"><i class="fas fa-calendar-check"></i></div>
           <div class="next-rdv-info">
-            <h3>${n.serviceType}</h3>
+            <h3>${escapeBookingText(n.serviceType)}</h3>
             <p>Le <strong>${d.day} ${d.month}</strong> à <strong>${n.appointmentStart}</strong> — <span class="${statusClass(n.status)}">${statusLabel(n.status)}</span></p>
           </div>
         </div>`;
@@ -928,7 +951,7 @@ async function loadBookings() {
             <div class="rdv-date-month">${d.month}</div>
           </div>
           <div class="rdv-info">
-            <h4>${b.serviceType}</h4>
+            <h4>${escapeBookingText(b.serviceType)}</h4>
             <p>${b.appointmentStart} → ${b.appointmentEnd} ${b.price ? '· ' + b.price + ' €' : '· Gratuit'}</p>
           </div>
           <span class="rdv-status ${statusClass(b.status)}">${statusLabel(b.status)}</span>
