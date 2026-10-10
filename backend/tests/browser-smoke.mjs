@@ -40,6 +40,7 @@ try {
   ws.addEventListener('message',event=>{const message=JSON.parse(event.data);if(message.id){const call=pending.get(message.id);if(call){clearTimeout(call.timer);pending.delete(message.id);message.error?call.reject(new Error(message.error.message)):call.resolve(message.result);}}if(message.method==='Runtime.exceptionThrown')exceptions.push(message.params.exceptionDetails.text+' '+(message.params.exceptionDetails.exception?.description || ''));if(message.method==='Page.javascriptDialogOpening')command('Page.handleJavaScriptDialog',{accept:true,promptText:speakeasy.totp({secret,encoding:'base32'})},message.sessionId).catch(()=>{});});
   const {targetId}=await command('Target.createTarget',{url:'about:blank'});const {sessionId}=await command('Target.attachToTarget',{targetId,flatten:true});
   const send=(method,params)=>command(method,params,sessionId);
+  await send('Emulation.setTimezoneOverride',{timezoneId:'Pacific/Honolulu'});
   await send('Page.enable');await send('Runtime.enable');await send('Network.enable');await send('Network.setBlockedURLs',{urls:['https://*']});
   async function evaluate(expression){const result=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true,userGesture:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);return result.result.value;}
   async function until(expression){for(let i=0;i<100;i++){try{if(await evaluate(expression))return;}catch{}await delay(100);}throw new Error('Browser condition not met: '+expression+' '+JSON.stringify(await evaluate("({loginError:document.getElementById('loginError')?.textContent,toast:document.getElementById('toast')?.textContent,app:document.getElementById('app')?.className,readyState:document.readyState})"))+' exceptions='+JSON.stringify(exceptions));}
@@ -57,6 +58,8 @@ try {
   await until("document.getElementById('unavailabilityBody').textContent.includes('Synthetic pause')");
   await send('Page.navigate',{url:base+'/index.html#booking'});
   await until("document.readyState==='complete' && document.getElementById('bZone')?.options.length===10 && document.querySelector('.calendar-day')");
+  const parisDay=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Paris',day:'numeric'}).format(new Date()));
+  assert.equal(await evaluate("Number(document.querySelector('.calendar-day.today').textContent)"),parisDay,'calendar today must follow Paris even for a browser in Honolulu');
   await evaluate(`if(new Date(${JSON.stringify(date)}+'T12:00:00').getMonth()!==new Date().getMonth())document.getElementById('calendarNext').click();true`);
   await evaluate(`document.getElementById('bZone').value='visage';document.getElementById('bZone').dispatchEvent(new Event('change'));Array.from(document.querySelectorAll('.calendar-day')).find(button=>Number(button.textContent)===${chosen.getUTCDate()} && !button.disabled).click();true`);
   const expectedAvailability=await (await fetch(base+'/api/bookings/availability?date='+date+'&serviceZone=visage')).json();

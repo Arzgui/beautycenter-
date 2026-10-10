@@ -25,6 +25,33 @@ async function finish(id){return request(app).patch(`/admin/bookings/${id}/statu
 const points=id=>db.get('SELECT points FROM users WHERE id=?',id);
 const availability=(serviceZone='visage')=>request(app).get('/bookings/availability').query({date:payload.appointmentDate,serviceZone});
 
+test.each([
+  ['2026-07-02T07:07:00Z','2026-07-02'],
+  ['2026-01-05T08:07:00Z','2026-01-05'],
+  ['2026-03-30T07:07:00Z','2026-03-30'],
+  ['2026-10-26T08:07:00Z','2026-10-26'],
+])('same-day availability and booking follow Paris clock at %s',async(now,date)=>{
+  jest.useFakeTimers({now:new Date(now),doNotFake:['nextTick','queueMicrotask','setImmediate','clearImmediate','setTimeout','clearTimeout','setInterval','clearInterval','hrtime','performance']});
+  try {
+    const slots=await request(app).get('/bookings/availability').query({date,serviceZone:'visage'});
+    expect(slots.status).toBe(200);
+    expect(slots.body.availableSlots).not.toContain('09:00');
+    expect(slots.body.availableSlots).toContain('09:15');
+    expect((await create({appointmentDate:date,appointmentStart:'09:00'})).status).toBe(400);
+    expect((await create({appointmentDate:date,appointmentStart:'09:15'})).status).toBe(201);
+  } finally {jest.useRealTimers();}
+});
+
+test('Paris midnight rejects previous calendar day even while UTC is still yesterday',async()=>{
+  jest.useFakeTimers({now:new Date('2026-07-01T22:30:00Z'),doNotFake:['nextTick','queueMicrotask','setImmediate','clearImmediate','setTimeout','clearTimeout','setInterval','clearInterval','hrtime','performance']});
+  try {
+    const previous=await request(app).get('/bookings/availability').query({date:'2026-07-01',serviceZone:'visage'});
+    expect(previous.body.availableSlots).toEqual([]);
+    expect((await create({appointmentDate:'2026-07-01'})).status).toBe(400);
+    expect((await create({appointmentDate:'2026-07-02',appointmentStart:'09:00'})).status).toBe(201);
+  } finally {jest.useRealTimers();}
+});
+
 test('one professional serves different services back to back with half-open intervals',async()=>{
   expect((await create({serviceZone:'dos',appointmentStart:'10:00'})).status).toBe(201);
   const slots=await availability('maillot');
