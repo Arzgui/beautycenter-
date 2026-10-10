@@ -4,7 +4,7 @@ import bookingsRoutes from '../routes/bookings.js';
 import { db, initializeDatabase } from '../config/database.js';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
 const app = express();
 app.use(express.json());

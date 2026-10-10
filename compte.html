@@ -516,8 +516,15 @@ async function login() {
   btn.disabled = true; btn.textContent = 'Connexion...';
   try {
     const res = await fetch(`${API}/api/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
-    const data = await res.json();
+    let data = await res.json();
     if (!res.ok) { err.textContent = data.message || 'Identifiants invalides.'; err.className += ' show'; return; }
+    if (data.twoFactorRequired) {
+      const code = window.prompt('Code de votre application de double authentification :');
+      if (!code) return;
+      const verification = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ challengeToken: data.challengeToken, token: code }) });
+      data = await verification.json();
+      if (!verification.ok) { err.textContent = data.message || 'Code invalide.'; err.className += ' show'; return; }
+    }
     localStorage.setItem('client_token', data.token);
     localStorage.setItem('client_user', JSON.stringify(data.user));
     window.location.href = 'espace-client.html';
