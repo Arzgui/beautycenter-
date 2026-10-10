@@ -25,6 +25,72 @@ async function finish(id){return request(app).patch(`/admin/bookings/${id}/statu
 const points=id=>db.get('SELECT points FROM users WHERE id=?',id);
 const availability=(serviceZone='visage')=>request(app).get('/bookings/availability').query({date:payload.appointmentDate,serviceZone});
 
+test('one professional serves different services back to back with half-open intervals',async()=>{
+  expect((await create({serviceZone:'dos',appointmentStart:'10:00'})).status).toBe(201);
+  const slots=await availability('maillot');
+  expect(slots.body.availableSlots).toContain('09:15'); // 45 minutes ends exactly at 10:00.
+  expect(slots.body.availableSlots).not.toContain('09:30');
+  expect(slots.body.availableSlots).not.toContain('10:45');
+  expect(slots.body.availableSlots).toContain('11:00');
+  expect((await create({serviceZone:'maillot',appointmentStart:'09:15'})).status).toBe(201);
+  expect((await create({serviceZone:'maillot',appointmentStart:'11:00'})).status).toBe(201);
+  expect((await create({appointmentStart:'10:15'})).status).toBe(409);
+});
+
+test('simultaneous different services compete for the same professional',async()=>{
+  const results=await Promise.all([create({serviceZone:'dos'}),create({serviceZone:'maillot',appointmentStart:'10:15'})]);
+  expect(results.map(result=>result.status).sort()).toEqual([201,409]);
+  expect((await db.get('SELECT COUNT(*) AS n FROM bookings')).n).toBe(1);
+});
+
+test('administrative move releases old interval, blocks new full duration and rejects closing overflow',async()=>{
+  const created=await create({serviceZone:'dos'});
+  const row=await db.get('SELECT * FROM bookings WHERE id=?',created.body.bookingId);
+  const edit={...row,appointmentStart:'12:00'};delete edit.appointmentEnd;
+  expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send(edit)).status).toBe(200);
+  expect((await db.get('SELECT appointmentEnd FROM bookings WHERE id=?',row.id)).appointmentEnd).toBe('13:00');
+  const slots=await availability();
+  expect(slots.body.availableSlots).toContain('10:00');
+  expect(slots.body.availableSlots).not.toContain('11:45');
+  expect(slots.body.availableSlots).not.toContain('12:45');
+  expect(slots.body.availableSlots).toContain('13:00');
+  expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...edit,appointmentStart:'18:15'})).status).toBe(400);
+  expect((await db.get('SELECT appointmentStart FROM bookings WHERE id=?',row.id)).appointmentStart).toBe('12:00');
+});
+
+test('configured full-day closure blocks all services and reopening restores availability',async()=>{
+  const block=await request(app).post('/admin/unavailability').set(adminHeader).send({appointmentDate:payload.appointmentDate,appointmentStart:'09:00',appointmentEnd:'19:00',reason:'Fermeture exceptionnelle'});
+  expect(block.status).toBe(201);
+  for(const zone of ['visage','maillot','dos']) {
+    expect((await availability(zone)).body.availableSlots).toEqual([]);
+    expect((await create({serviceZone:zone})).status).toBe(409);
+  }
+  expect((await request(app).delete(`/admin/unavailability/${block.body.id}`).set(adminHeader)).status).toBe(204);
+  expect((await availability()).body.availableSlots).toContain('09:00');
+});
+
+test('45-minute service ends at closing and cancellation frees its complete interval',async()=>{
+  const result=await create({serviceZone:'maillot',appointmentStart:'18:15'});
+  expect(result.status).toBe(201);
+  const row=await db.get('SELECT * FROM bookings WHERE id=?',result.body.bookingId);
+  expect(row.appointmentEnd).toBe('19:00');
+  expect((await create({serviceZone:'maillot',appointmentStart:'18:30'})).status).toBe(400);
+  expect((await availability()).body.availableSlots).not.toContain('18:00');
+  expect((await request(app).post('/bookings/cancel').send({token:row.cancellationToken})).status).toBe(200);
+  expect((await availability('maillot')).body.availableSlots).toContain('18:15');
+});
+
+test('duration need not be a multiple of 15 while public starts remain on the grid',async()=>{
+  const config=await db.get("SELECT * FROM schedules WHERE zone='visage'");
+  expect((await request(app).patch(`/admin/schedules/${config.id}`).set(adminHeader).send({...config,duration:20})).status).toBe(200);
+  const result=await create();expect(result.status).toBe(201);
+  expect((await db.get('SELECT appointmentEnd FROM bookings WHERE id=?',result.body.bookingId)).appointmentEnd).toBe('10:20');
+  const slots=await availability();
+  expect(slots.body.availableSlots).not.toContain('10:15');
+  expect(slots.body.availableSlots).toContain('10:30');
+  expect(slots.body.availableSlots.every(slot=>Number(slot.slice(3))%15===0)).toBe(true);
+});
+
 test('completion between admin read and write cannot transfer an already credited account',async()=>{
   const response=await create({},'owner');
   const row=await db.get('SELECT * FROM bookings WHERE id=?',response.body.bookingId);

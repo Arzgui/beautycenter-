@@ -59,9 +59,11 @@ try {
   await until("document.readyState==='complete' && document.getElementById('bZone')?.options.length===10 && document.querySelector('.calendar-day')");
   await evaluate(`if(new Date(${JSON.stringify(date)}+'T12:00:00').getMonth()!==new Date().getMonth())document.getElementById('calendarNext').click();true`);
   await evaluate(`document.getElementById('bZone').value='visage';document.getElementById('bZone').dispatchEvent(new Event('change'));Array.from(document.querySelectorAll('.calendar-day')).find(button=>Number(button.textContent)===${chosen.getUTCDate()} && !button.disabled).click();true`);
-  await until("document.querySelectorAll('.slot-button').length===40");
+  const expectedAvailability=await (await fetch(base+'/api/bookings/availability?date='+date+'&serviceZone=visage')).json();
+  await until(`document.querySelectorAll('.slot-button').length===${expectedAvailability.availableSlots.length}`);
   const grid=await evaluate("Array.from(document.querySelectorAll('.slot-button')).map(button=>({time:button.textContent,disabled:button.disabled}))");
-  assert.ok(grid.some(slot=>slot.time==='09:15' && !slot.disabled));assert.ok(grid.some(slot=>slot.time.startsWith('13:15') && slot.disabled));assert.ok(grid.some(slot=>slot.time.startsWith('18:15') && slot.disabled));
+  assert.ok(grid.some(slot=>slot.time==='09:15' && !slot.disabled));assert.ok(!grid.some(slot=>slot.time==='13:15'));assert.ok(!grid.some(slot=>slot.time==='18:15'));
+  assert.deepEqual(grid.map(slot=>slot.time),expectedAvailability.availableSlots);assert.ok(grid.every(slot=>!slot.disabled));
   await evaluate("document.getElementById('bName').value='Browser guest';document.getElementById('bEmail').value='browser-client@example.com';document.getElementById('bPhone').value='+33600000000';document.getElementById('bConsent').checked=true;Array.from(document.querySelectorAll('.slot-button')).find(button=>button.textContent==='09:15').click();document.getElementById('bookingForm').requestSubmit();true");
   let stored;for(let i=0;i<40;i++){const response=await fetch(base+'/api/admin/bookings',{headers:{Authorization:'Bearer '+auth}});const data=await response.json();stored=data.bookings.find(b=>b.clientEmail==='browser-client@example.com');if(stored)break;await delay(100);}assert.ok(stored,'browser guest booking missing');assert.equal(stored.appointmentEnd,'10:15');assert.equal(stored.userId,null);
   await send('Page.navigate',{url:base+'/compte.html'});await until("document.readyState==='complete' && document.getElementById('loginBtn') && typeof login==='function'");

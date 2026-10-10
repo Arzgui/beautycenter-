@@ -449,35 +449,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const availability = await getUnavailableSlots(selectedDay, serviceZone);
             if (requestId !== slotsRequestId) return;
             if (!availability) { calendarPrompt.textContent = 'Impossible de charger les disponibilites. Veuillez reessayer.'; return; }
-            availableSlots = availability.slots;
+            availableSlots = availability.availableSlots;
             selectedDuration = availability.duration;
             servicePrices[serviceZone] = availability.price;
-            const unavailableSlots = availability.unavailableSlots;
-            if (previousSlot && availableSlots.includes(previousSlot) && !unavailableSlots.includes(previousSlot)) selectedSlot = previousSlot;
+            if (previousSlot && availableSlots.includes(previousSlot)) selectedSlot = previousSlot;
             updateSelectedDate();
 
-            const availableSlotCount = availableSlots.filter(slot => !unavailableSlots.includes(slot)).length;
+            const availableSlotCount = availableSlots.length;
             calendarPrompt.textContent = availableSlotCount > 0
                 ? `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - choisissez un horaire :`
-                : `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - tous les créneaux sont déjà réservés.`;
+                : `${formatDate(selectedDay, { weekday: 'long', day: 'numeric', month: 'long' })} - aucun horaire disponible pour cette prestation.`;
 
             availableSlots.forEach(slot => {
-                const isUnavailable = unavailableSlots.includes(slot);
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'slot-button';
-                button.disabled = isUnavailable;
                 button.setAttribute('aria-pressed', String(slot === selectedSlot));
                 if (slot === selectedSlot) button.classList.add('selected');
-                if (isUnavailable) {
-                    button.classList.add('unavailable');
-                    button.setAttribute('aria-disabled', 'true');
-                    button.setAttribute('aria-label', `${slot}, déjà réservé`);
-                    button.title = 'Créneau déjà réservé';
-                    button.innerHTML = `<span>${slot}</span><small>Réservé</small>`;
-                } else {
-                    button.textContent = slot;
-                }
+                button.textContent = slot;
                 button.addEventListener('click', () => {
                     if (button.disabled) return;
                     calendarSlots.querySelectorAll('.slot-button').forEach(item => {

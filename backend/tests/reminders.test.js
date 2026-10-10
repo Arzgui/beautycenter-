@@ -1,5 +1,6 @@
 import { db, initializeDatabase } from '../config/database.js';
 import { sendDueReminders } from '../utils/reminders.js';
+import { tomorrowParis } from '../utils/dates.js';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
@@ -9,9 +10,7 @@ beforeAll(async () => {
 });
 
 function tomorrowISO() {
-  const now = new Date();
-  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-  return tomorrow.toISOString().slice(0, 10);
+  return tomorrowParis();
 }
 
 async function insertBooking(overrides = {}) {
