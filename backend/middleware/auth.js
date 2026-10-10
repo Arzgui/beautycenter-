@@ -1,8 +1,9 @@
+import { JWT_SECRET } from '../config/jwt.js';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
+
 
 export function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -11,7 +12,8 @@ export function verifyToken(req, res, next) {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (payload.purpose) return res.status(401).json({ message: 'Token invalide.' });
     req.user = payload;
     next();
   } catch (error) {

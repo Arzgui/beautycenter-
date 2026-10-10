@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/html.js';
+import { JWT_SECRET } from '../config/jwt.js';
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -11,9 +13,9 @@ import { authLimiter } from "../middleware/rateLimiter.js";
 import { verifyToken } from "../middleware/auth.js";
 import { sendBrevoEmail } from "../utils/brevo.js";
 
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
 const SITE_URL = process.env.SITE_URL || "http://localhost:4000";
 
@@ -28,7 +30,7 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { email, password, name } = req.body;
       const existingUser = await db.get(
@@ -56,7 +58,7 @@ router.post(
         await sendBrevoEmail(
           email,
           "Confirmez votre adresse email — IS Beauty",
-          `<p>Bonjour ${name},</p><p>Merci de votre inscription chez IS Beauty.</p><p>Pour confirmer votre adresse email, cliquez sur le lien ci-dessous :</p><p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#B6F4FF;color:#070B14;font-weight:700;border-radius:8px;text-decoration:none">Confirmer mon email</a></p>`,
+          `<p>Bonjour ${escapeHtml(name)},</p><p>Merci de votre inscription chez IS Beauty.</p><p>Pour confirmer votre adresse email, cliquez sur le lien ci-dessous :</p><p><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:12px 24px;background:#B6F4FF;color:#070B14;font-weight:700;border-radius:8px;text-decoration:none">Confirmer mon email</a></p>`,
           `Bonjour ${name},\nMerci de votre inscription chez IS Beauty.\nPour confirmer votre adresse email, cliquez sur ce lien : ${verifyUrl}`,
         );
       } catch (emailError) {
@@ -83,7 +85,7 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { email, password } = req.body;
       const user = await db.get("SELECT * FROM users WHERE email = ?", email);
@@ -95,9 +97,11 @@ router.post(
         return res.status(401).json({ message: "Identifiants invalides." });
 
       if (user.twoFactorEnabled) {
+        const nonce = uuidv4();
+        await db.run('UPDATE users SET loginChallenge = ? WHERE id = ?', nonce, user.id);
         return res
           .status(200)
-          .json({ twoFactorRequired: true, userId: user.id });
+          .json({ twoFactorRequired: true, challengeToken: jwt.sign({ id: user.id, purpose: '2fa', nonce }, JWT_SECRET, { expiresIn: '5m' }) });
       }
 
       const token = jwt.sign(
@@ -126,17 +130,22 @@ router.post(
 router.post(
   "/login/2fa",
   authLimiter,
-  body("userId").isUUID(),
-  body("token").isString().notEmpty(),
+  body("challengeToken").isString().notEmpty(),
+  body("token").matches(/^\d{6}$/),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
-      const { userId, token } = req.body;
+      const { challengeToken, token } = req.body;
+      let challenge;
+      try { challenge = jwt.verify(challengeToken, JWT_SECRET, { algorithms: ['HS256'] }); }
+      catch { return res.status(401).json({ message: 'Session 2FA expiree.' }); }
+      if (challenge.purpose !== '2fa') return res.status(401).json({ message: 'Session 2FA invalide.' });
+      const userId = challenge.id;
       const user = await db.get("SELECT * FROM users WHERE id = ?", userId);
-      if (!user || !user.twoFactorEnabled)
+      if (!user || !user.twoFactorEnabled || user.loginChallenge !== challenge.nonce)
         return res
           .status(401)
           .json({ message: "Utilisateur introuvable ou 2FA non configuré." });
@@ -151,6 +160,8 @@ router.post(
       if (!verified)
         return res.status(401).json({ message: "Code 2FA invalide." });
 
+      const consumed = await db.run('UPDATE users SET loginChallenge = NULL WHERE id = ? AND loginChallenge = ?', user.id, challenge.nonce);
+      if (!consumed.changes) return res.status(401).json({ message: 'Session 2FA already used.' });
       const authToken = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
         JWT_SECRET,
@@ -180,7 +191,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { token } = req.body;
       const user = await db.get('SELECT * FROM users WHERE emailVerificationToken = ?', token);
@@ -213,7 +224,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { email } = req.body;
       const user = await db.get('SELECT * FROM users WHERE email = ?', email);
@@ -231,7 +242,7 @@ router.post(
         await sendBrevoEmail(
           email,
           'Confirmez votre adresse email — IS Beauty',
-          `<p>Bonjour ${user.name},</p><p>Voici un nouveau lien pour confirmer votre adresse email :</p><p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#B6F4FF;color:#070B14;font-weight:700;border-radius:8px;text-decoration:none">Confirmer mon email</a></p>`,
+          `<p>Bonjour ${escapeHtml(user.name)},</p><p>Voici un nouveau lien pour confirmer votre adresse email :</p><p><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:12px 24px;background:#B6F4FF;color:#070B14;font-weight:700;border-radius:8px;text-decoration:none">Confirmer mon email</a></p>`,
           `Bonjour ${user.name},\nVoici un nouveau lien pour confirmer votre adresse email : ${verifyUrl}`
         );
       } catch (emailError) {
@@ -246,17 +257,21 @@ router.post(
 );
 
 // ── 2FA SETUP ──
-router.post("/2fa/setup", verifyToken, async (req, res, next) => {
+router.post("/2fa/setup", verifyToken, authLimiter, async (req, res, next) => {
   try {
+    const user = await db.get('SELECT twoFactorEnabled FROM users WHERE id = ?', req.user.id);
+    if (!user) return res.status(401).json({ message: 'Utilisateur introuvable.' });
+    if (user.twoFactorEnabled) return res.status(409).json({ message: '2FA deja active.' });
     const secret = speakeasy.generateSecret({
       name: `IS Beauty (${req.user.email})`,
     });
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
-    await db.run(
-      "UPDATE users SET twoFactorSecret = ? WHERE id = ?",
+    const configured = await db.run(
+      "UPDATE users SET twoFactorSecret = ? WHERE id = ? AND twoFactorEnabled = 0",
       secret.base32,
       req.user.id,
     );
+    if (!configured.changes) return res.status(409).json({ message: '2FA deja active.' });
     res.json({ qrCodeUrl, secret: secret.base32 });
   } catch (error) {
     next(error);
@@ -267,12 +282,13 @@ router.post("/2fa/setup", verifyToken, async (req, res, next) => {
 router.post(
   "/2fa/enable",
   verifyToken,
-  body("token").isString().notEmpty(),
+  authLimiter,
+  body("token").matches(/^\d{6}$/),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const user = await db.get(
         "SELECT * FROM users WHERE id = ?",
@@ -290,10 +306,11 @@ router.post(
       if (!verified)
         return res.status(401).json({ message: "Code 2FA invalide." });
 
-      await db.run(
-        "UPDATE users SET twoFactorEnabled = 1 WHERE id = ?",
-        req.user.id,
+      const enabled = await db.run(
+        "UPDATE users SET twoFactorEnabled = 1 WHERE id = ? AND twoFactorSecret = ? AND twoFactorEnabled = 0",
+        req.user.id, user.twoFactorSecret
       );
+      if (!enabled.changes) return res.status(409).json({ message: 'Configuration 2FA modifiee.' });
       res.json({ message: "2FA activé." });
     } catch (error) {
       next(error);
@@ -321,7 +338,7 @@ router.patch(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { currentPassword, newPassword } = req.body;
       const user = await db.get(
@@ -360,7 +377,7 @@ router.patch(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { name } = req.body;
       await db.run("UPDATE users SET name = ? WHERE id = ?", name, req.user.id);
@@ -384,7 +401,7 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { email } = req.body;
       const user = await db.get(
@@ -413,21 +430,23 @@ router.post(
 
       const resetUrl = `${SITE_URL}/reset-password.html?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-      await sendBrevoEmail(
-        email,
-        "Réinitialisation de votre mot de passe IS Beauty",
-        `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#070B14;color:#DCE6F2;padding:40px;border-radius:12px;border:1px solid rgba(26,236,255,0.12)">
-          <h1 style="font-size:22px;color:#fff;margin-bottom:8px">Réinitialisation du mot de passe</h1>
-          <p style="color:#7488A3;margin-bottom:24px">Bonjour ${user.name},</p>
-          <p style="margin-bottom:24px">Vous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable <strong style="color:#B6F4FF">15 minutes</strong>.</p>
-          <a href="${resetUrl}" style="display:inline-block;padding:14px 28px;background:#B6F4FF;color:#070B14;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;border-radius:8px;text-decoration:none">
-            Réinitialiser mon mot de passe
-          </a>
-          <p style="margin-top:32px;font-size:12px;color:#7488A3">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-          <p style="font-size:12px;color:#7488A3">IS Beauty — Épilation Médico Laser ICE — Forbach</p>
-        </div>`,
-      );
+      try {
+        await sendBrevoEmail(
+          email,
+          "Réinitialisation de votre mot de passe IS Beauty",
+          `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#070B14;color:#DCE6F2;padding:40px;border-radius:12px;border:1px solid rgba(26,236,255,0.12)">
+            <h1 style="font-size:22px;color:#fff;margin-bottom:8px">Réinitialisation du mot de passe</h1>
+            <p style="color:#7488A3;margin-bottom:24px">Bonjour ${escapeHtml(user.name)},</p>
+            <p style="margin-bottom:24px">Vous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable <strong style="color:#B6F4FF">15 minutes</strong>.</p>
+            <a href="${escapeHtml(resetUrl)}" style="display:inline-block;padding:14px 28px;background:#B6F4FF;color:#070B14;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;border-radius:8px;text-decoration:none">
+              Réinitialiser mon mot de passe
+            </a>
+            <p style="margin-top:32px;font-size:12px;color:#7488A3">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+            <p style="font-size:12px;color:#7488A3">IS Beauty — Épilation Médico Laser ICE — Forbach</p>
+          </div>`,
+        );
 
+      } catch { console.warn('Password reset email unavailable'); }
       res.json({ message: "Si cet email existe, un lien a été envoyé." });
     } catch (error) {
       next(error);
@@ -446,7 +465,7 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty())
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { token, email, newPassword } = req.body;
 
@@ -470,12 +489,11 @@ router.post(
         return res.status(404).json({ message: "Utilisateur introuvable." });
 
       const newHash = await bcrypt.hash(newPassword, 12);
-      await db.run(
-        "UPDATE users SET passwordHash = ? WHERE id = ?",
-        newHash,
-        user.id,
+      const result = await db.run(
+        "UPDATE users SET passwordHash = ? WHERE id = ? AND EXISTS (SELECT 1 FROM password_resets WHERE token = ? AND email = ? AND expiresAt > ?)",
+        newHash, user.id, token, email, new Date().toISOString()
       );
-      await db.run("DELETE FROM password_resets WHERE token = ?", token);
+      if (!result.changes) return res.status(400).json({ message: 'Lien invalide ou expire.' });
 
       res.json({ message: "Mot de passe réinitialisé avec succès." });
     } catch (error) {

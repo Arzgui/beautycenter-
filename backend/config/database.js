@@ -1,7 +1,7 @@
 import sqlite3 from 'sqlite3';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
 const DATABASE_FILE = process.env.DATABASE_FILE || './database.sqlite';
 
@@ -28,7 +28,7 @@ export async function initializeDatabase() {
     raw: rawDb,
   };
 
-  await db.exec('PRAGMA foreign_keys = ON;');
+  await db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -122,10 +122,39 @@ if (!columnNames.includes('cancelledBy')) {
   const userColumns = await db.all("PRAGMA table_info(users);");
   const userColumnNames = userColumns.map((col) => col.name);
 
+  if (!userColumnNames.includes('loginChallenge')) await db.exec('ALTER TABLE users ADD COLUMN loginChallenge TEXT;');
+
   if (!userColumnNames.includes('emailVerified')) {
     await db.exec('ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0;');
   }
   if (!userColumnNames.includes('emailVerificationToken')) {
     await db.exec('ALTER TABLE users ADD COLUMN emailVerificationToken TEXT;');
   }
+  if (!columnNames.includes('pointsAwarded')) {
+    await db.exec('ALTER TABLE bookings ADD COLUMN pointsAwarded INTEGER NOT NULL DEFAULT 0;');
+    // Historical completed bookings have already received their points.
+    await db.run("UPDATE bookings SET pointsAwarded = 1 WHERE status = 'completed'");
+  }
+  await db.run("UPDATE bookings SET status = 'cancelled' WHERE status = 'canceled'");
+  await db.exec(`
+    CREATE TRIGGER IF NOT EXISTS bookings_no_overlap_insert BEFORE INSERT ON bookings
+    WHEN NEW.status != 'cancelled' AND EXISTS (
+      SELECT 1 FROM bookings WHERE appointmentDate = NEW.appointmentDate AND status != 'cancelled'
+      AND appointmentStart < NEW.appointmentEnd AND NEW.appointmentStart < appointmentEnd
+    ) BEGIN SELECT RAISE(ABORT, 'booking_overlap'); END;
+    CREATE TRIGGER IF NOT EXISTS bookings_no_overlap_update BEFORE UPDATE OF appointmentDate, appointmentStart, appointmentEnd, status ON bookings
+    WHEN NEW.status != 'cancelled' AND EXISTS (
+      SELECT 1 FROM bookings WHERE id != NEW.id AND appointmentDate = NEW.appointmentDate AND status != 'cancelled'
+      AND appointmentStart < NEW.appointmentEnd AND NEW.appointmentStart < appointmentEnd
+    ) BEGIN SELECT RAISE(ABORT, 'booking_overlap'); END;
+    CREATE TRIGGER IF NOT EXISTS users_consume_resets AFTER UPDATE OF passwordHash ON users
+    BEGIN DELETE FROM password_resets WHERE email = NEW.email; END;
+    CREATE TRIGGER IF NOT EXISTS bookings_award_points AFTER UPDATE OF status ON bookings
+    WHEN NEW.status = 'completed' AND NEW.pointsAwarded = 0 AND EXISTS (SELECT 1 FROM users WHERE email = NEW.clientEmail)
+    BEGIN
+      UPDATE users SET points = points + MAX(0, COALESCE(NEW.pointsEarned, CAST(NEW.price / 10 AS INTEGER))) WHERE email = NEW.clientEmail;
+      UPDATE bookings SET pointsAwarded = 1 WHERE id = NEW.id;
+    END;
+  `);
+
 }

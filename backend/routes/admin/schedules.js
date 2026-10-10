@@ -23,7 +23,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { zone, duration, price, label } = req.body;
       const id = uuidv4();

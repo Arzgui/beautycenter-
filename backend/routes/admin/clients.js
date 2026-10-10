@@ -23,7 +23,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { email, password, name } = req.body;
       const existing = await db.get('SELECT id FROM users WHERE email = ?', email);
@@ -44,7 +44,7 @@ router.post(
 router.patch('/:id/points', body('points').isInt(), async (req, res, next) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
     const { id } = req.params;
     const { points } = req.body;

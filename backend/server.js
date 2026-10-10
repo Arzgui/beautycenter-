@@ -1,3 +1,4 @@
+import { protectSourceFiles } from './middleware/publicFiles.js';
 import express from 'express';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -21,7 +22,7 @@ import { startReminderScheduler } from './utils/reminders.js';
 
 
 // Configuration des variables d'environnement
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,12 +36,6 @@ const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
   : ['http://localhost:4000'];
 
-// Alerte de sécurité JWT
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change_this_secret') {
-  console.warn('⚠️  JWT_SECRET n’est pas défini ou utilise une valeur par défaut. Définissez une valeur forte dans .env.');
-}
-
-// À laisser à 1 si tu es derrière un reverse proxy (Heroku, Render, AWS, Nginx, Cloudflare)
 app.set('trust proxy', 1);
 
 // Configuration de base de Helmet (sans la CSP par défaut qu'on gère manuellement)
@@ -147,6 +142,7 @@ app.get('/admin.html', (req, res) => {
 });
 
 // Serveur de fichiers statiques (Le dossier public)
+app.use(protectSourceFiles);
 app.use(express.static(publicDir, { index: false }));
 
 // Limitation globale des requêtes (Rate Limiting)

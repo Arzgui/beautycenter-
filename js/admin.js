@@ -35,8 +35,15 @@ async function login() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
+    let data = await res.json();
     if (!res.ok) { err.textContent = data.message || 'Identifiants invalides.'; return; }
+    if (data.twoFactorRequired) {
+      const code = window.prompt('Code de votre application de double authentification :');
+      if (!code) throw new Error('Connexion annulee.');
+      const verification = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ challengeToken: data.challengeToken, token: code }) });
+      data = await verification.json();
+      if (!verification.ok) throw new Error(data.message || 'Code invalide.');
+    }
     if (data.token) {
       token = data.token;
       localStorage.setItem('admin_token', token);

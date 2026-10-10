@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'contact@isbeauty.fr';
@@ -8,12 +8,13 @@ const BREVO_SMS_SENDER = process.env.BREVO_SMS_SENDER || 'ISBEAU';
 
 export async function sendBrevoEmail(toEmail, subject, htmlContent, textContent) {
   if (!BREVO_API_KEY || !toEmail || !subject || !htmlContent) {
-    console.warn('Brevo email: paramètres manquants', { BREVO_API_KEY: !!BREVO_API_KEY, toEmail, subject });
-    return;
+    console.warn('Notification provider not configured');
+    return false;
   }
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {  // ✅ nouvelle URL
     method: 'POST',
+    signal: AbortSignal.timeout(10000),
     headers: {
       'Content-Type': 'application/json',
       'api-key': BREVO_API_KEY,
@@ -29,20 +30,21 @@ export async function sendBrevoEmail(toEmail, subject, htmlContent, textContent)
 
   const data = await res.json();
   if (!res.ok) {
-    console.error('Brevo email erreur:', res.status, data);
+    throw new Error(`Brevo email failed (${res.status})`);
   } else {
-    console.log('Brevo email envoyé à', toEmail, '- messageId:', data.messageId);
+    return true;
   }
 }
 
 export async function sendBrevoSms(phone, message) {
   if (!BREVO_API_KEY || !phone || !message || !BREVO_SMS_SENDER) {
-    console.warn('Brevo SMS: paramètres manquants', { BREVO_API_KEY: !!BREVO_API_KEY, phone, BREVO_SMS_SENDER });
-    return;
+    console.warn('Notification provider not configured');
+    return false;
   }
 
   const res = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
     method: 'POST',
+    signal: AbortSignal.timeout(10000),
     headers: {
       'Content-Type': 'application/json',
       'api-key': BREVO_API_KEY,
@@ -56,8 +58,8 @@ export async function sendBrevoSms(phone, message) {
 
   const data = await res.json();
   if (!res.ok) {
-    console.error('Brevo SMS erreur:', res.status, data);
+    throw new Error(`Brevo SMS failed (${res.status})`);
   } else {
-    console.log('Brevo SMS envoyé à', phone, '- messageId:', data.messageId);
+    return true;
   }
 }

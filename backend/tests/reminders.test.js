@@ -2,7 +2,7 @@ import { db, initializeDatabase } from '../config/database.js';
 import { sendDueReminders } from '../utils/reminders.js';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
 beforeAll(async () => {
   await initializeDatabase();

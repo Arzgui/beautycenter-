@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/html.js';
+import { parisDate } from '../utils/dates.js';
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
@@ -51,8 +53,7 @@ function parseAppointmentDate(dateString) {
 }
 
 function getTodayUtc() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return new Date(parisDate() + 'T00:00:00Z');
 }
 
 function isClosedDay(date) {
@@ -119,7 +120,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart } = req.body;
       const appointmentDateObj = parseAppointmentDate(appointmentDate);
@@ -173,19 +174,22 @@ router.post(
         cancellationToken
       );
 
-      if (process.env.BREVO_API_KEY && process.env.BREVO_SMS_SENDER) {
-        try {
-          await sendBrevoSms(
-            clientPhone,
-            `Votre rendez-vous IS Beauty pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.`
-          );
-        } catch (smsError) {
-          console.warn('Erreur Brevo SMS:', smsError.message || smsError);
+      try {
+        if (process.env.BREVO_API_KEY && process.env.BREVO_SMS_SENDER) {
+          try {
+            await sendBrevoSms(
+              clientPhone,
+              `Votre rendez-vous IS Beauty pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.`
+            );
+          } catch (smsError) {
+            console.warn('Erreur Brevo SMS:', smsError.message || smsError);
+            await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
+          }
+        } else {
           await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
         }
-      } else {
-        await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
-      }
+
+      } catch (error) { console.warn('Confirmation SMS indisponible'); }
 
       const cancelUrl = `${process.env.SITE_URL || 'http://localhost:4000'}/annuler.html?token=${cancellationToken}`;
 
@@ -193,7 +197,7 @@ router.post(
         await sendBrevoEmail(
           clientEmail,
           'Confirmation de rendez-vous IS Beauty',
-          `<p>Bonjour ${clientName},</p><p>Votre rendez-vous pour <strong>${serviceType}</strong> est confirmé le <strong>${appointmentDateISO}</strong> à <strong>${appointmentStart}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p><p style="margin-top:24px;font-size:13px;color:#7488A3">Un empêchement ? <a href="${cancelUrl}">Annuler ce rendez-vous</a>.</p>`,
+          `<p>Bonjour ${escapeHtml(clientName)},</p><p>Votre rendez-vous pour <strong>${escapeHtml(serviceType)}</strong> est confirmé le <strong>${escapeHtml(appointmentDateISO)}</strong> à <strong>${escapeHtml(appointmentStart)}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p><p style="margin-top:24px;font-size:13px;color:#7488A3">Un empêchement ? <a href="${escapeHtml(cancelUrl)}">Annuler ce rendez-vous</a>.</p>`,
           `Bonjour ${clientName},\nVotre rendez-vous pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.\nMerci de votre confiance, à bientôt chez IS Beauty.\nUn empêchement ? Annuler ce rendez-vous : ${cancelUrl}`
         );
       } catch (emailError) {
@@ -202,7 +206,7 @@ router.post(
       try {
         await broadcastPushNotification(
           'Rendez-vous confirmé',
-          `Votre rendez-vous IS Beauty le ${appointmentDateISO} à ${appointmentStart} est confirmé.`
+          'Une nouvelle reservation a ete enregistree.'
         );
       } catch (pushError) {
         console.warn('Erreur notification push:', pushError.message || pushError);
@@ -217,9 +221,11 @@ router.post(
 
 router.get('/', verifyToken, async (req, res, next) => {
   try {
+    const user = await db.get('SELECT email, emailVerified FROM users WHERE id = ?', req.user.id);
+    if (!user?.emailVerified) return res.status(403).json({ message: 'Veuillez verifier votre adresse email.' });
     const bookings = await db.all(
-      'SELECT * FROM bookings WHERE clientEmail = ? ORDER BY appointmentDate, appointmentStart',
-      req.user.email
+      'SELECT id, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, status, price, pointsEarned FROM bookings WHERE clientEmail = ? ORDER BY appointmentDate, appointmentStart',
+      user.email
     );
     res.json({ bookings });
   } catch (error) {
@@ -233,7 +239,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { token } = req.body;
       const booking = await db.get('SELECT * FROM bookings WHERE cancellationToken = ?', token);
@@ -247,18 +253,19 @@ router.post(
       }
 
       const cancelledAt = new Date().toISOString();
-      await db.run(
-        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ?",
+      const cancelled = await db.run(
+        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ? AND status != 'cancelled'",
         cancelledAt,
         cancelledAt,
         booking.id
       );
 
+      if (!cancelled.changes) return res.status(409).json({ message: 'Ce rendez-vous est deja annule.' });
       try {
         await sendBrevoEmail(
           booking.clientEmail,
           'Annulation de votre rendez-vous IS Beauty',
-          `<p>Bonjour ${booking.clientName},</p><p>Votre rendez-vous du <strong>${booking.appointmentDate}</strong> à <strong>${booking.appointmentStart}</strong> a bien été annulé.</p><p>Vous pouvez réserver un nouveau créneau à tout moment sur notre site.</p>`,
+          `<p>Bonjour ${escapeHtml(booking.clientName)},</p><p>Votre rendez-vous du <strong>${escapeHtml(booking.appointmentDate)}</strong> à <strong>${escapeHtml(booking.appointmentStart)}</strong> a bien été annulé.</p><p>Vous pouvez réserver un nouveau créneau à tout moment sur notre site.</p>`,
           `Bonjour ${booking.clientName},\nVotre rendez-vous du ${booking.appointmentDate} à ${booking.appointmentStart} a bien été annulé.\nVous pouvez réserver un nouveau créneau à tout moment sur notre site.`
         );
       } catch (emailError) {
