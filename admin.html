@@ -140,6 +140,7 @@
     <div class="nav-tab active" data-page="dashboard"><i class="fas fa-chart-line"></i> Tableau de bord</div>
     <div class="nav-tab" data-page="bookings"><i class="fas fa-calendar-alt"></i> Rendez-vous</div>
     <div class="nav-tab" data-page="clients"><i class="fas fa-users"></i> Clients</div>
+    <div class="nav-tab" data-page="configuration"><i class="fas fa-clock"></i> Prestations et disponibilites</div>
   </nav>
 
   <main>
@@ -200,6 +201,28 @@
         </table>
       </div>
     </div>
+    <div class="page" id="page-configuration">
+      <div class="table-header"><h2>Prestations</h2><button class="btn btn-outline btn-sm" id="refreshConfiguration">Actualiser</button></div>
+      <p>Les durees s'appliquent aux nouvelles reservations et aux deplacements. Les rendez-vous existants restent inchanges.</p>
+      <div class="table-wrap"><table><thead><tr><th>Code</th><th>Prestation</th><th>Duree (min)</th><th>Prix</th><th>Actions</th></tr></thead><tbody id="servicesBody"></tbody></table></div>
+      <form id="newServiceForm" class="modal-grid">
+        <div class="form-group"><label for="newServiceZone">Code</label><input id="newServiceZone" required pattern="[a-z][a-z0-9_-]{0,49}" /></div>
+        <div class="form-group"><label for="newServiceLabel">Prestation</label><input id="newServiceLabel" required maxlength="150" /></div>
+        <div class="form-group"><label for="newServiceDuration">Duree (minutes)</label><input id="newServiceDuration" type="number" min="15" max="600" step="1" required /></div>
+        <div class="form-group"><label for="newServicePrice">Prix</label><input id="newServicePrice" type="number" min="0" step="1" required /></div>
+        <button class="btn btn-primary" type="submit">Ajouter la prestation</button>
+      </form>
+      <div class="table-header"><h2>Indisponibilites</h2></div>
+      <p>Pour fermer une journée entière, bloquez la période de 09:00 à 19:00. Pour une pause, indiquez uniquement la période concernée.</p>
+      <form id="unavailabilityForm" class="modal-grid">
+        <div class="form-group"><label for="blockedDate">Date</label><input id="blockedDate" type="date" required /></div>
+        <div class="form-group"><label for="blockedStart">Debut</label><input id="blockedStart" type="time" min="09:00" max="19:00" required /></div>
+        <div class="form-group"><label for="blockedEnd">Fin</label><input id="blockedEnd" type="time" min="09:00" max="19:00" required /></div>
+        <div class="form-group"><label for="blockedReason">Motif</label><input id="blockedReason" maxlength="200" /></div>
+        <button class="btn btn-primary" type="submit">Bloquer cette plage</button>
+      </form>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Horaire</th><th>Motif</th><th>Action</th></tr></thead><tbody id="unavailabilityBody"></tbody></table></div>
+    </div>
   </main>
 </div>
 
@@ -233,9 +256,10 @@
       </div>
       <div class="form-group">
         <label>Horaire</label>
-        <select id="editSlot"></select>
+        <input id="editSlot" type="time" min="09:00" max="19:00" step="60" />
       </div>
     </div>
+    <div class="form-group"><label for="editAccount">Compte fidelite (association explicite)</label><select id="editAccount"></select></div>
     <div class="modal-actions">
       <button class="btn btn-outline" id="cancelEditBtn">Annuler</button>
       <button class="btn btn-primary" id="saveEditBtn"><i class="fas fa-save"></i> Enregistrer</button>

@@ -1,27 +1,18 @@
+import { getService } from '../utils/services.js';
+import { escapeHtml } from '../utils/html.js';
+import { parisDate, parisMinutes } from '../utils/dates.js';
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../config/database.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, optionalToken } from '../middleware/auth.js';
 import { sendConfirmationSms } from '../utils/twilio.js';
 import { sendBrevoEmail, sendBrevoSms } from '../utils/brevo.js';
 import { broadcastPushNotification } from '../utils/push.js';
 
 const router = express.Router();
 
-const serviceDurations = {
-  bilan: { duration: 30, price: 0, label: 'Bilan Médico Laser ICE' },
-  visage: { duration: 30, price: 40, label: 'Visage & cou' },
-  aisselles: { duration: 30, price: 20, label: 'Aisselles' },
-  maillot: { duration: 45, price: 50, label: 'Maillot' },
-  jambes: { duration: 45, price: 30, label: 'Jambes & bras' },
-  bras: { duration: 45, price: 28, label: 'Bras / Demi-bras' },
-  dos: { duration: 60, price: 50, label: 'Dos / ventre' },
-  corps: { duration: 60, price: 150, label: 'Corps complet' },
-  forfait: { duration: 120, price: 120, label: 'Forfait multi-zones' },
-};
-
-const publicSlots = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+const publicSlots = Array.from({ length: 40 }, (_, index) => formatTime(9 * 60 + index * 15));
 
 function parseTime(dateString) {
   const [hours, minutes] = dateString.split(':').map(Number);
@@ -51,8 +42,7 @@ function parseAppointmentDate(dateString) {
 }
 
 function getTodayUtc() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return new Date(parisDate() + 'T00:00:00Z');
 }
 
 function isClosedDay(date) {
@@ -76,50 +66,49 @@ async function findOverlappingBooking(appointmentDateISO, startMinutes, endMinut
   });
 }
 
+router.get('/services', async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json({ services: await db.all('SELECT zone, label, duration, price FROM schedules WHERE active = 1 ORDER BY label') });
+  } catch (error) { next(error); }
+});
+
 router.get('/availability', async (req, res, next) => {
   try {
     const { date, serviceZone } = req.query;
-    const service = serviceDurations[serviceZone];
+    const service = await getService(String(serviceZone || ''));
     const appointmentDate = parseAppointmentDate(String(date || ''));
-
     res.set('Cache-Control', 'no-store');
-
-    if (!appointmentDate || !service) {
-      return res.status(400).json({ message: 'Paramètres de disponibilité invalides.' });
-    }
-
-    if (appointmentDate < getTodayUtc() || isClosedDay(appointmentDate)) {
-      return res.json({ unavailableSlots: publicSlots });
-    }
-
-    const unavailableSlots = [];
-    for (const slot of publicSlots) {
-      const startMinutes = parseTime(slot);
-      const endMinutes = startMinutes + service.duration;
-      if (endMinutes > 19 * 60 || await findOverlappingBooking(date, startMinutes, endMinutes)) {
-        unavailableSlots.push(slot);
-      }
-    }
-
-    res.json({ unavailableSlots });
-  } catch (error) {
-    next(error);
-  }
+    if (!appointmentDate || !service) return res.status(400).json({ message: 'Parametres de disponibilite invalides.' });
+    const busy = await db.all(
+      "SELECT appointmentStart, appointmentEnd FROM bookings WHERE appointmentDate = ? AND status != 'cancelled' UNION ALL SELECT appointmentStart, appointmentEnd FROM unavailability WHERE appointmentDate = ?", date, date
+    );
+    const closed = appointmentDate < getTodayUtc() || isClosedDay(appointmentDate);
+    const unavailableSlots = publicSlots.filter(slot => {
+      const start = parseTime(slot), end = start + service.duration;
+      return closed || end > 19 * 60 || (date === parisDate() && start <= parisMinutes()) ||
+        busy.some(range => rangesOverlap(start, end, parseTime(range.appointmentStart), parseTime(range.appointmentEnd)));
+    });
+    res.json({ slots: publicSlots, availableSlots: publicSlots.filter(slot => !unavailableSlots.includes(slot)), unavailableSlots, duration: service.duration, price: service.price });
+  } catch (error) { next(error); }
 });
 
 router.post(
   '/',
+  optionalToken,
   body('clientName').trim().notEmpty(),
   body('clientEmail').isEmail(),
   body('clientPhone').trim().notEmpty(),
-  body('serviceZone').isIn(Object.keys(serviceDurations)),
+  body('serviceZone').isString().notEmpty(),
   body('appointmentDate').isISO8601({ strict: true }),
   body('appointmentStart').matches(/^([01]\d|2[0-3]):([0-5]\d)$/),
+  body('userId').not().exists(),
+  body('duration').optional().isInt({ min: 15, max: 600 }),
   body('price').optional().isInt({ min: 0 }),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { clientName, clientEmail, clientPhone, serviceZone, appointmentDate, appointmentStart } = req.body;
       const appointmentDateObj = parseAppointmentDate(appointmentDate);
@@ -136,13 +125,20 @@ router.post(
       }
 
       const appointmentDateISO = appointmentDate;
-      const service = serviceDurations[serviceZone];
+      const service = await getService(serviceZone);
+      if (!service) return res.status(400).json({ message: 'Prestation inconnue ou desactivee.' });
+      if (req.body.duration != null && Number(req.body.duration) !== service.duration) return res.status(409).json({ message: 'La duree de la prestation a change. Veuillez choisir a nouveau un horaire.' });
+      let userId = null;
+      if (req.user) {
+        if (req.user.email.toLowerCase() !== clientEmail.toLowerCase()) return res.status(403).json({ message: 'Le compte connecte ne correspond pas a cette adresse email.' });
+        if (req.user.emailVerified) userId = req.user.id;
+      }
       const duration = service.duration;
       const price = service.price;
       const startMinutes = parseTime(appointmentStart);
       const endMinutes = startMinutes + duration;
 
-      if (startMinutes < 9 * 60 || endMinutes > 19 * 60) {
+      if (startMinutes % 15 !== 0 || startMinutes < 9 * 60 || endMinutes > 19 * 60 || (appointmentDate === parisDate() && startMinutes <= parisMinutes())) {
         return res.status(400).json({ message: 'Heure de rendez-vous hors des horaires 9h-19h.' });
       }
 
@@ -157,8 +153,9 @@ router.post(
       const cancellationToken = uuidv4();
 
       await db.run(
-        'INSERT INTO bookings (id, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt, cancellationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO bookings (id, userId, clientName, clientEmail, clientPhone, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, price, pointsEarned, createdAt, cancellationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         id,
+        userId,
         clientName,
         clientEmail,
         clientPhone,
@@ -173,19 +170,22 @@ router.post(
         cancellationToken
       );
 
-      if (process.env.BREVO_API_KEY && process.env.BREVO_SMS_SENDER) {
-        try {
-          await sendBrevoSms(
-            clientPhone,
-            `Votre rendez-vous IS Beauty pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.`
-          );
-        } catch (smsError) {
-          console.warn('Erreur Brevo SMS:', smsError.message || smsError);
+      try {
+        if (process.env.BREVO_API_KEY && process.env.BREVO_SMS_SENDER) {
+          try {
+            await sendBrevoSms(
+              clientPhone,
+              `Votre rendez-vous IS Beauty pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.`
+            );
+          } catch (smsError) {
+            console.warn('Erreur Brevo SMS:', smsError.message || smsError);
+            await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
+          }
+        } else {
           await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
         }
-      } else {
-        await sendConfirmationSms(clientPhone, clientName, appointmentDateISO, appointmentStart, serviceType);
-      }
+
+      } catch (error) { console.warn('Confirmation SMS indisponible'); }
 
       const cancelUrl = `${process.env.SITE_URL || 'http://localhost:4000'}/annuler.html?token=${cancellationToken}`;
 
@@ -193,7 +193,7 @@ router.post(
         await sendBrevoEmail(
           clientEmail,
           'Confirmation de rendez-vous IS Beauty',
-          `<p>Bonjour ${clientName},</p><p>Votre rendez-vous pour <strong>${serviceType}</strong> est confirmé le <strong>${appointmentDateISO}</strong> à <strong>${appointmentStart}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p><p style="margin-top:24px;font-size:13px;color:#7488A3">Un empêchement ? <a href="${cancelUrl}">Annuler ce rendez-vous</a>.</p>`,
+          `<p>Bonjour ${escapeHtml(clientName)},</p><p>Votre rendez-vous pour <strong>${escapeHtml(serviceType)}</strong> est confirmé le <strong>${escapeHtml(appointmentDateISO)}</strong> à <strong>${escapeHtml(appointmentStart)}</strong>.</p><p>Merci de votre confiance, à bientôt chez IS Beauty.</p><p style="margin-top:24px;font-size:13px;color:#7488A3">Un empêchement ? <a href="${escapeHtml(cancelUrl)}">Annuler ce rendez-vous</a>.</p>`,
           `Bonjour ${clientName},\nVotre rendez-vous pour ${serviceType} est confirmé le ${appointmentDateISO} à ${appointmentStart}.\nMerci de votre confiance, à bientôt chez IS Beauty.\nUn empêchement ? Annuler ce rendez-vous : ${cancelUrl}`
         );
       } catch (emailError) {
@@ -202,7 +202,7 @@ router.post(
       try {
         await broadcastPushNotification(
           'Rendez-vous confirmé',
-          `Votre rendez-vous IS Beauty le ${appointmentDateISO} à ${appointmentStart} est confirmé.`
+          'Une nouvelle reservation a ete enregistree.'
         );
       } catch (pushError) {
         console.warn('Erreur notification push:', pushError.message || pushError);
@@ -217,9 +217,11 @@ router.post(
 
 router.get('/', verifyToken, async (req, res, next) => {
   try {
+    const user = await db.get('SELECT email, emailVerified FROM users WHERE id = ?', req.user.id);
+    if (!user?.emailVerified) return res.status(403).json({ message: 'Veuillez verifier votre adresse email.' });
     const bookings = await db.all(
-      'SELECT * FROM bookings WHERE clientEmail = ? ORDER BY appointmentDate, appointmentStart',
-      req.user.email
+      'SELECT id, serviceZone, serviceType, appointmentDate, appointmentStart, appointmentEnd, status, price, pointsEarned FROM bookings WHERE userId = ? OR (userId IS NULL AND lower(clientEmail) = lower(?)) ORDER BY appointmentDate, appointmentStart',
+      req.user.id, user.email
     );
     res.json({ bookings });
   } catch (error) {
@@ -233,7 +235,7 @@ router.post(
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array().map(({ value, ...error }) => error) });
 
       const { token } = req.body;
       const booking = await db.get('SELECT * FROM bookings WHERE cancellationToken = ?', token);
@@ -242,23 +244,25 @@ router.post(
         return res.status(404).json({ message: 'Réservation introuvable.' });
       }
 
+      if (booking.status === 'completed') return res.status(409).json({ message: 'Un rendez-vous termine ne peut plus etre annule.' });
       if (booking.status === 'cancelled') {
         return res.status(409).json({ message: 'Ce rendez-vous est déjà annulé.' });
       }
 
       const cancelledAt = new Date().toISOString();
-      await db.run(
-        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ?",
+      const cancelled = await db.run(
+        "UPDATE bookings SET status = 'cancelled', cancelledAt = ?, cancelledBy = 'client', updatedAt = ? WHERE id = ? AND status IN ('pending', 'confirmed')",
         cancelledAt,
         cancelledAt,
         booking.id
       );
 
+      if (!cancelled.changes) return res.status(409).json({ message: 'Ce rendez-vous est deja annule.' });
       try {
         await sendBrevoEmail(
           booking.clientEmail,
           'Annulation de votre rendez-vous IS Beauty',
-          `<p>Bonjour ${booking.clientName},</p><p>Votre rendez-vous du <strong>${booking.appointmentDate}</strong> à <strong>${booking.appointmentStart}</strong> a bien été annulé.</p><p>Vous pouvez réserver un nouveau créneau à tout moment sur notre site.</p>`,
+          `<p>Bonjour ${escapeHtml(booking.clientName)},</p><p>Votre rendez-vous du <strong>${escapeHtml(booking.appointmentDate)}</strong> à <strong>${escapeHtml(booking.appointmentStart)}</strong> a bien été annulé.</p><p>Vous pouvez réserver un nouveau créneau à tout moment sur notre site.</p>`,
           `Bonjour ${booking.clientName},\nVotre rendez-vous du ${booking.appointmentDate} à ${booking.appointmentStart} a bien été annulé.\nVous pouvez réserver un nouveau créneau à tout moment sur notre site.`
         );
       } catch (emailError) {

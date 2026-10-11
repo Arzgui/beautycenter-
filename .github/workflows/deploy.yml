@@ -1,6 +1,8 @@
-name: Deploy IS Beauty
-  clea
+name: Test IS Beauty
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -23,54 +25,56 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: npm install
-
-      - name: Create .env for tests
-        working-directory: backend
-        run: |
-          cat <<EOF > .env
-          PORT=4000
-          DATABASE_FILE=./database.sqlite
-          JWT_SECRET=test_secret_for_ci_only
-          JWT_EXPIRES_IN=1h
-          CORS_ORIGINS=http://localhost:4000,http://localhost:3000
-          VAPID_PUBLIC_KEY=BMCd9NtyKa4zWz1U3-XVj-YYfrocIkNK-x7OyN60KMLhpQ4TMM1NoMUFXKtFyq7zCyHLohuJbtmf-a-mDJ2H73g
-          VAPID_PRIVATE_KEY=ZceS0jIKL1GreuBpHiJWT0dHHZdxvdPQu3p2nDko7og
-          VAPID_SUBJECT=mailto:test@isbeauty.local
-          TWILIO_ACCOUNT_SID=ACtestplaceholder
-          TWILIO_AUTH_TOKEN=test_auth_token
-          TWILIO_PHONE_NUMBER=+10000000000
-          BREVO_API_KEY=test_brevo_api_key
-          BREVO_SENDER_EMAIL=test@isbeauty.local
-          BREVO_SENDER_NAME=IS Beauty Test
-          BREVO_SMS_SENDER=ISBeautyTest
-          ONESIGNAL_APP_ID=test_onesignal_app_id
-          ONESIGNAL_API_KEY=test_onesignal_api_key
-          AIRTABLE_API_KEY=test_airtable_api_key
-          AIRTABLE_BASE_ID=test_airtable_base_id
-          AIRTABLE_TABLE_NAME=Customers
-          EOF
+        run: npm ci
 
       - name: Run tests
         working-directory: backend
         run: npm test
 
-  deploy:
-    name: Deploy to VPS
-    needs: test
-    runs-on: ubuntu-latest
-    if: success()
+      - name: Audit production dependencies
+        working-directory: backend
+        run: npm audit --omit=dev
 
+  browser:
+    name: Browser smoke (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /var/www/isbeauty/backend
-            git fetch origin main
-            git reset --hard origin/main
-            npm install
-            pm2 restart isbeauty
+          node-version: '22.22.3'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Setup Chrome on CI runner only
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+      - name: Allow Chrome sandbox on Ubuntu runner
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          # Ubuntu restricts user namespaces for Chrome for Testing outside /opt/google/chrome.
+          # Scope the exception to this executable on this ephemeral runner; keep Chrome sandbox enabled.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            cat <<EOF | sudo tee /etc/apparmor.d/isbeauty-ci-chrome > /dev/null
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile isbeauty-ci-chrome "$CHROME_PATH" flags=(unconfined) {
+            userns,
+          }
+          EOF
+            sudo apparmor_parser -r /etc/apparmor.d/isbeauty-ci-chrome
+          fi
+      - name: Browser smoke with isolated fixtures
+        working-directory: backend
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tests/browser-smoke.mjs

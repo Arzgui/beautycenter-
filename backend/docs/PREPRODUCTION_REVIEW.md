@@ -1,0 +1,51 @@
+# Audit et préparation technique de préproduction — PR #2
+
+11 octobre 2026, branche fix/single-professional-planning. Le projet reste en test. Aucune donnée existante supprimée/réinitialisée, aucune base de production ouverte, aucun secret réel créé ou modifié. Seuls les fichiers temporaires générés par les tests sont nettoyés. Aucune fusion, installation de services système ni mise en ligne.
+
+> Mise à jour des dépendances : [DEPENDENCY_REMEDIATION.md](DEPENDENCY_REMEDIATION.md). bcrypt 6.0.0, sqlite3 6.0.1, UUID 14.0.3, tar 7.5.22 ; audit production à zéro, 131 tests réussis. Le décompte initial des alertes et des tests ci-dessous reste historique. Le risque de maintenance sqlite3 et les alertes dev restent explicités dans le nouveau rapport.
+
+## Vérifications et corrections
+
+| Axe | État | Preuve / correction |
+| --- | --- | --- |
+| Compte/email/fidélité | VALIDÉ | Correction fcd0c55 toujours présente : vérification systématique compte vérifié/email même sans changement de userId, second contrôle SQL, aucun crédit implicite d'une invitée, crédit déjà attribué non transférable. Onze scénarios couvrent adresses, invités, comptes vérifiés et concurrence. Aucun nouveau changement nécessaire dans admin/bookings.js. |
+| Planning | VALIDÉ | Une professionnelle, grille publique de 15 minutes, 09:00–19:00, durée configurée, [début, fin), pauses/fermetures datées, annulation/déplacement et courses concurrentes. Anciennes données conservées et migrations sur copies synthétiques rejouées. |
+| Authentification et accès | VALIDÉ dans le périmètre testé | Tests HTTP login client/admin, refus des clients sur API admin, vérification email, setup/enable/login 2FA, expiration/rejeu, reset, révocation après mot de passe et droits actuels. Chrome confirme 2FA admin ET client. Pas d'audit exhaustif de toutes les routes. |
+| Quota 2FA | CORRIGÉ / VALIDÉ | Parcours navigateur complet reproduisait un refus « trop de tentatives » après setup/enable suivis d'une reconnexion. Le quota de configuration 2FA est séparé du quota de login ; chacun reste à 6 tentatives/15 minutes. Test des deux plafonds et de leur indépendance. |
+| Vérification email et annulation | CORRIGÉ / VALIDÉ | Les pages avaient des scripts inline incompatibles avec leur CSP script-src self. Extraction vers js/verify-email.js et js/cancel-booking.js, sans changement visuel ni assouplissement CSP. Parcours réels Chrome maintenant exécutés jusqu'au succès et libération du créneau. |
+| Fichiers sensibles | RENFORCÉ / VALIDÉ | Le serveur statique reste basé sur le dépôt ; les seuls types/chemins web autorisés peuvent être servis. Tests avec fichiers réellement présents : snapshots/config JSON refusés, chemins encodés et backend refusés, HTML public accessible. Bases/sauvegardes prescrites hors dépôt. |
+| Sessions | PARTIEL / À CORRIGER | Révocation/contrôles testés. JWT toujours dans localStorage et certaines pages avec scripts inline permis ; stockage TOTP actuel conservé. Cookies HttpOnly, CSP stricte et récupération 2FA restent des travaux distincts. |
+| Mobile/navigateur | VALIDÉ en émulation | Chrome desktop et viewport mobile 390x844, administration/public/espace client sans débordement horizontal. Réservation et login/2FA sur mobile émulé. iOS/Android réels, Safari/Firefox et accessibilité complète NON TESTÉS. |
+| Service Worker | RENFORCÉ / VALIDÉ | Version v5, HTML/JS/CSS réseau prioritaire, API hors cache ; suppression limitée aux anciens caches IS Beauty, claim après nettoyage. VM et Chrome : ancien cache retiré, cache tiers conservé, nouvelle version active. Une véritable PWA installée et passage entre deux versions de serveur réel restent NON TESTÉS. |
+| HTTPS/CORS/env | RENFORCÉ / VALIDÉ localement | Production refuse SITE_URL non HTTPS, origines non explicites/incompatibles, chemin DB relatif, VAPID absent et email Brevo non configuré. Écoute loopback par défaut, TRUST_PROXY configurable, CORS refusé avec 403. Démarrage réel en mode production testé avec identifiants synthétiques. TLS/certificat/DNS/proxy réels NON TESTÉS. |
+| Premier admin | AJOUTÉ / VALIDÉ | Commande locale avec approbation explicite, promeut un compte existant vérifié, refuse admin existant/adresse ambiguë, ne crée aucun mot de passe ; transaction et révocation sessions/challenge. Tests de fonction et CLI sans accord n'ouvrant aucune DB. Aucun compte réel promu. Ancien script npm seed pointait vers un fichier absent ; remplacé par commandes opérateur explicites. |
+| Sauvegarde/restauration | AJOUTÉ / VALIDÉ sur synthétique | Snapshot SQLite VACUUM INTO cohérent avec WAL, lecture seule source, destination réservée exclusivement, integrity_check et foreign_key_check. Restauration vers nouveau fichier testée ; pas d'écrasement ni suppression. Refus source absente/corrompue, cible existante et cible dans dépôt web. Timer horaire préparé, non installé ; restauration VPS/stockage externe/supervision NON TESTÉS. |
+| Dépendances | AMÉLIORÉ / BLOCAGE PRODUCTION | Audit npm initial production : 19 alertes dont 2 critiques. Correctifs compatibles sans scripts ni --force : 16 paquets mis à jour ; audit final production : **10 alertes — 2 faibles, 1 modérée, 6 élevées, 1 critique**. Rapport dependency-audit.json. Les chaînes natives bcrypt/sqlite3 (dont tar) et uuid exigent selon npm des mises à jour majeures. Pas de migration majeure forcée. |
+
+## Tests effectivement exécutés
+
+- `npm test -- --silent`, après les corrections et mises à jour compatibles : **10 suites, 130 tests réussis**, zéro échec final. Les suites intermédiaires ont aussi été exécutées (127 puis 128 tests).
+- `node tests/browser-smoke.mjs`, après le lockfile mis à jour : 2FA admin/client, email vérifié, annulation, CORS, activation/cache SW, mobile émulé, durée/indisponibilité, grille, réservation invitée et historique client ; zéro exception JavaScript non interceptée. Fuseau navigateur Honolulu, calendrier Paris. Ressources HTTPS externes bloquées, aucune livraison réelle.
+- `node tests/production-startup.mjs` : serveur réel NODE_ENV=production sur base isolée, origines HTTPS synthétiques autorisées/refusées, accès admin sans token refusé, sources backend protégées, configuration HTTP refusée et migration non autorisée refusée sans écriture. Clés éphémères de test uniquement, aucune requête fournisseur.
+- Tests d'exploitation : snapshot source WAL ouverte, restauration préservant l'état du snapshot alors que la source reçoit une ligne supplémentaire, intégrité, refus d'écrasement/corruption, promotion admin et refus sans accord.
+- Migrations ancien schéma synthétique : normal, état interrompu, échec injecté/rollback/reprise, production sans accord, idempotence et concurrence multi-connexion, dans la suite complète. Aucune base réelle utilisée.
+- `npm audit --omit=dev --json` avant/après : code de sortie **1 attendu**, car alertes restantes ; il s'agit d'un contrôle en échec, pas d'une validation sécurité réussie. `npm audit fix --ignore-scripts` a aussi retourné 1 pour les alertes non corrigées, dont celles de développement. Aucun --force, aucune montée majeure, aucun audit à zéro revendiqué.
+- Syntaxe Node des JavaScript modifiés et git diff --check. La CI utilise désormais npm ci pour le lockfile exact, et reste limitée aux tests.
+
+Échecs intermédiaires : le nouveau test navigateur complet a révélé le quota de login consommé par la configuration 2FA, corrigé puis retesté. Les scripts email/annulation bloqués par CSP ont été confirmés par le code, puis vérifiés fonctionnels dans Chrome après extraction. Les quatre tests FINDING continuent volontairement à reproduire les limites de notifications ; leur réussite ne les corrige pas.
+
+Le premier essai isolé de démarrage production n'a pas atteint la disponibilité dans sa fenêtre de 10 secondes, sans erreur serveur capturée. Le test dispose maintenant de 30 secondes et de diagnostics stdout/exit ; la réexécution a réussi. La cause du premier délai n'est pas établie et aucune mesure de temps de démarrage sur VPS n'est revendiquée.
+
+## Préparation livrée et risques restants
+
+[PRODUCTION_OPERATIONS.md](PRODUCTION_OPERATIONS.md) détaille variables, installation/démarrage, création/migration approuvée, premier admin, 2FA, HTTPS/CORS, sauvegarde horaire et restauration, contrôles après mise en ligne et retour arrière. Modèles systemd/Nginx dans docs/deployment, jamais appliqués. Migration et données non modifiées par le serveur en mode production ; approbation manuelle séparée toujours obligatoire.
+
+Les alertes npm restantes ne prouvent pas toutes une exploitation HTTP : plusieurs concernent les chaînes d'installation des modules natifs, et uuid utilise ici v4. Leur qualification et remédiation doivent cependant précéder la mise en production ; les tests fonctionnels ne les neutralisent pas. L'audit complet incluant le développement signalait aussi des alertes autour de Jest, à traiter séparément avec ses mises à jour majeures.
+
+Notifications sans file durable/idempotence, push pouvant suspendre la réponse malgré enregistrement, doublons après marquage échoué/multi-instance et aucun rattrapage des rappels après arrêt couvrant minuit. Un seul scheduler requis. Conserver ce point bloquant opérationnel tant qu'une décision et une stratégie de reprise n'ont pas été validées.
+
+Les sauvegardes automatiques ne sont pas actives tant que l'opérateur n'installe pas le timer. Pas de purge automatique : rétention à autoriser, espace disque à superviser, copie externe chiffrée à configurer. La restauration réelle, le RPO/RTO, certificats, variables et fournisseurs doivent être testés dans l'environnement cible. Aucune cliente réelle n'est supposée, mais aucune donnée de test existante n'a été supprimée.
+
+**Fusion : GO après revue**, pour intégrer cette préparation testée et les correctifs compatibles, avec blocages explicitement documentés et aucun déploiement automatique.
+
+**Déploiement : NO-GO.** Alertes critiques/élevées restantes à qualifier/corriger, risques sessions/notifications à traiter ou accepter explicitement avec mesures adaptées, et validation réelle HTTPS/env/email/2FA/sauvegarde/restauration/supervision encore nécessaire. Une fusion ne vaut pas accord de mise en ligne ni de migration.
