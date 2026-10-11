@@ -34,3 +34,31 @@ jobs:
       - name: Audit production dependencies
         working-directory: backend
         run: npm audit --omit=dev
+
+  browser:
+    name: Browser smoke (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Setup Chrome on CI runner only
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+      - name: Browser smoke with isolated fixtures
+        working-directory: backend
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tests/browser-smoke.mjs

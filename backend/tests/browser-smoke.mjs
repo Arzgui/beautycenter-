@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { resolveChrome } from './chrome-path.mjs';
+const chromePath = resolveChrome();
 const directory = await mkdtemp(path.join(tmpdir(),'isbeauty-browser-'));
 process.env.DATABASE_FILE = path.join(directory,'synthetic.sqlite');
 process.env.DOTENV_CONFIG_PATH = '__no_test_env__';
@@ -38,8 +40,15 @@ try {
   assert.equal(allowed.headers.get('access-control-allow-origin'),base);
   assert.equal((await fetch(base+'/api/bookings/services',{headers:{Origin:'https://untrusted.example'}})).status,403);
   assert.ok((await fetch(base+'/service-worker.js')).headers.get('cache-control').includes('no-cache'));
-  chrome=spawn(process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--remote-debugging-port=0',`--user-data-dir=${path.join(directory,'chrome-profile')}`,'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
-  const debuggerUrl=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(new Error('Chrome did not expose DevTools')),15000);chrome.on('error',reject);chrome.stderr.on('data',chunk=>{output+=chunk;const match=output.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1]);}});});
+  chrome=spawn(chromePath,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--remote-debugging-port=0',`--user-data-dir=${path.join(directory,'chrome-profile')}`,'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
+  const debuggerUrl=await new Promise((resolve,reject)=>{
+    let output='';
+    const fail=error=>{clearTimeout(timer);reject(error);};
+    const timer=setTimeout(()=>fail(new Error('Chrome did not expose DevTools: '+output)),15000);
+    chrome.once('error',fail);
+    chrome.once('exit',(code,signal)=>fail(new Error(`Chrome exited before DevTools (code=${code}, signal=${signal}): ${output}`)));
+    chrome.stderr.on('data',chunk=>{output+=chunk;const match=output.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1]);}});
+  });
   ws=new WebSocket(debuggerUrl);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
   let sequence=0;let dialogSecret=secret;const pending=new Map();const exceptions=[];
   function command(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('CDP timed out: '+method));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));});}
