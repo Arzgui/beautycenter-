@@ -1,5 +1,7 @@
 # Vérification finale avant intégration
 
+> Mise à jour PR #2 : la revue complémentaire a révélé un contrôle manquant lors du maintien du même userId. Correction et validation actuelle (**105 tests**) dans [PR2_ACCOUNT_EMAIL_REVIEW.md](PR2_ACCOUNT_EMAIL_REVIEW.md). Les résultats ci-dessous décrivent la vérification initiale à 95 tests.
+
 11 octobre 2026 — branche `fix/single-professional-planning`, cible `main`. Aucun secret réel lu/modifié, aucune base de production ouverte, aucune fusion ni déploiement.
 
 ## Fonctionnalités vérifiées

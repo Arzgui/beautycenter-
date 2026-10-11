@@ -71,13 +71,13 @@ router.patch('/:id',
     if (!validAppointment(appointmentDate, appointmentStart, appointmentEnd) || (req.body.appointmentEnd && req.body.appointmentEnd !== appointmentEnd)) return res.status(400).json({ message: 'Horaire incompatible avec la duree de la prestation.' });
     const userId = Object.hasOwn(req.body, 'userId') ? req.body.userId : booking.userId;
     if (booking.pointsAwarded && userId !== booking.userId) return res.status(409).json({ message: 'Les points ont deja ete attribues au compte associe.' });
-    if (userId && userId !== booking.userId) {
+    if (userId) {
       const account = await db.get('SELECT id FROM users WHERE id = ? AND emailVerified = 1 AND lower(email) = lower(?)', userId, clientEmail);
       if (!account) return res.status(400).json({ message: 'Choisissez le compte verifie correspondant a cette adresse email.' });
     }
     const result = await db.run(
-      'UPDATE bookings SET clientName=?, clientEmail=?, clientPhone=?, serviceZone=?, serviceType=?, appointmentDate=?, appointmentStart=?, appointmentEnd=?, price=?, pointsEarned=CASE WHEN pointsAwarded = 0 THEN CAST(? / 10 AS INTEGER) ELSE pointsEarned END, reminderSentAt=CASE WHEN appointmentDate != ? OR appointmentStart != ? THEN NULL ELSE reminderSentAt END, userId=?, updatedAt=? WHERE id=? AND (pointsAwarded = 0 OR userId IS ?)',
-      clientName, clientEmail, clientPhone, serviceZone, service.label, appointmentDate, appointmentStart, appointmentEnd, price, price, appointmentDate, appointmentStart, userId, new Date().toISOString(), id, userId
+      'UPDATE bookings SET clientName=?, clientEmail=?, clientPhone=?, serviceZone=?, serviceType=?, appointmentDate=?, appointmentStart=?, appointmentEnd=?, price=?, pointsEarned=CASE WHEN pointsAwarded = 0 THEN CAST(? / 10 AS INTEGER) ELSE pointsEarned END, reminderSentAt=CASE WHEN appointmentDate != ? OR appointmentStart != ? THEN NULL ELSE reminderSentAt END, userId=?, updatedAt=? WHERE id=? AND (pointsAwarded = 0 OR userId IS ?) AND (? IS NULL OR EXISTS (SELECT 1 FROM users WHERE id = ? AND emailVerified = 1 AND lower(email) = lower(?)))',
+      clientName, clientEmail, clientPhone, serviceZone, service.label, appointmentDate, appointmentStart, appointmentEnd, price, price, appointmentDate, appointmentStart, userId, new Date().toISOString(), id, userId, userId, userId, clientEmail
     );
     if (!result.changes) return res.status(409).json({ message: 'Le rendez-vous a change. Actualisez avant de modifier son compte associe.' });
     res.json({ message: 'Rendez-vous mis a jour.' });

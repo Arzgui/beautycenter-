@@ -25,6 +25,82 @@ async function finish(id){return request(app).patch(`/admin/bookings/${id}/statu
 const points=id=>db.get('SELECT points FROM users WHERE id=?',id);
 const availability=(serviceZone='visage')=>request(app).get('/bookings/availability').query({date:payload.appointmentDate,serviceZone});
 
+async function savedBooking(as='owner') {
+  const result=await create({},as);expect(result.status).toBe(201);
+  return db.get('SELECT * FROM bookings WHERE id=?',result.body.bookingId);
+}
+const editBooking=(row,changes={})=>request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,...changes});
+
+test.each([false,true])('changed email cannot retain mismatched account, omitted userId=%s',async(omitted)=>{
+  const row=await savedBooking();const edit={...row,clientEmail:'other@example.com'};
+  if(omitted)delete edit.userId;
+  expect((await editBooking(edit)).status).toBe(400);
+  const stored=await db.get('SELECT * FROM bookings WHERE id=?',row.id);
+  expect(stored.clientEmail).toBe(payload.clientEmail);expect(stored.userId).toBe('owner');
+  expect((await points('owner')).points).toBe(0);expect((await points('other')).points).toBe(0);
+});
+
+test('matching verified account remains editable with case-insensitive email',async()=>{
+  const row=await savedBooking();
+  expect((await editBooking(row,{clientEmail:'OWNER@example.com',clientName:'Updated'})).status).toBe(200);
+  await finish(row.id);expect((await points('owner')).points).toBe(4);
+});
+
+test('unchanged association is rejected if account is no longer verified',async()=>{
+  const row=await savedBooking();await db.run("UPDATE users SET emailVerified=0 WHERE id='owner'");
+  expect((await editBooking(row,{clientName:'Updated'})).status).toBe(400);
+  expect((await db.get('SELECT clientName FROM bookings WHERE id=?',row.id)).clientName).toBe(row.clientName);
+});
+
+test('guest email can change without implicitly linking any verified account',async()=>{
+  const row=await savedBooking(null);
+  expect((await editBooking(row,{clientEmail:'other@example.com'})).status).toBe(200);
+  await finish(row.id);
+  expect((await db.get('SELECT userId FROM bookings WHERE id=?',row.id)).userId).toBeNull();
+  expect((await points('other')).points).toBe(0);
+});
+
+test('before credit an admin can explicitly unlink the account when changing email',async()=>{
+  const row=await savedBooking();
+  expect((await editBooking(row,{clientEmail:'other@example.com',userId:null})).status).toBe(200);
+  await finish(row.id);expect((await points('owner')).points).toBe(0);expect((await points('other')).points).toBe(0);
+});
+
+test('before credit an explicit matching verified replacement is permitted',async()=>{
+  const row=await savedBooking();
+  expect((await editBooking(row,{clientEmail:'other@example.com',userId:'other'})).status).toBe(200);
+  await finish(row.id);expect((await points('owner')).points).toBe(0);expect((await points('other')).points).toBe(4);
+});
+
+test.each([
+  [{clientEmail:'other@example.com'},400],
+  [{clientEmail:'other@example.com',userId:'other'},409],
+  [{clientEmail:'other@example.com',userId:null},409],
+])('already credited booking preserves email, beneficiary and ledger for %j',async(changes,status)=>{
+  const row=await savedBooking();await finish(row.id);
+  const credited=await db.get('SELECT * FROM bookings WHERE id=?',row.id);
+  expect((await editBooking(credited,changes)).status).toBe(status);
+  const stored=await db.get('SELECT * FROM bookings WHERE id=?',row.id);
+  expect(stored.clientEmail).toBe(row.clientEmail);expect(stored.userId).toBe('owner');
+  expect(stored.pointsAwarded).toBe(1);expect(stored.pointsEarned).toBe(credited.pointsEarned);
+  expect((await points('owner')).points).toBe(4);expect((await points('other')).points).toBe(0);
+  expect((await editBooking(stored,{clientPhone:'+33600000001'})).status).toBe(200);
+  expect((await points('owner')).points).toBe(4);
+});
+
+test('write-time guard rejects account mismatch introduced after validation',async()=>{
+  const row=await savedBooking();const original=db.run.bind(db);
+  const intercepted=jest.spyOn(db,'run').mockImplementation(async(sql,...args)=>{
+    if(sql.startsWith('UPDATE bookings SET clientName='))await original("UPDATE users SET email='changed@example.com' WHERE id='owner'");
+    return original(sql,...args);
+  });
+  try {
+    expect((await editBooking(row,{clientName:'Updated'})).status).toBe(409);
+    expect((await db.get('SELECT clientName FROM bookings WHERE id=?',row.id)).clientName).toBe(row.clientName);
+    expect((await points('owner')).points).toBe(0);
+  } finally {intercepted.mockRestore();}
+});
+
 test.each([
   ['2026-07-02T07:07:00Z','2026-07-02'],
   ['2026-01-05T08:07:00Z','2026-01-05'],
@@ -138,7 +214,7 @@ test('verified owner booking earns once through authenticated userId',async()=>{
 test('unverified account remains able to reserve as guest without fidelity credit',async()=>{const response=await create({clientEmail:'unverified@example.com'},'unverified');expect(response.status).toBe(201);await finish(response.body.bookingId);expect((await points('unverified')).points).toBe(0);});
 test('invalid or stale bearer is not silently downgraded to guest',async()=>{expect((await request(app).post('/bookings').set('Authorization','Bearer invalid').send(payload)).status).toBe(401);await db.run("UPDATE users SET sessionVersion=1 WHERE id='owner'");expect((await create({},'owner')).status).toBe(401);});
 test('admin can explicitly associate a guest with the matching verified account and credit completed appointment once',async()=>{const response=await create();await finish(response.body.bookingId);const row=await db.get('SELECT * FROM bookings WHERE id=?',response.body.bookingId);expect((await request(app).patch(`/admin/bookings/${row.id}`).set('Authorization','Bearer '+token('other')).send({...row,userId:'owner'})).status).toBe(403);expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,userId:'other'})).status).toBe(400);expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,userId:'owner'})).status).toBe(200);expect((await points('owner')).points).toBe(4);expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,userId:'owner'})).status).toBe(200);expect((await points('owner')).points).toBe(4);expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,userId:null})).status).toBe(409);});
-test('editing contact email never transfers fidelity to another account',async()=>{const response=await create({},'owner');const row=await db.get('SELECT * FROM bookings WHERE id=?',response.body.bookingId);expect((await request(app).patch(`/admin/bookings/${row.id}`).set(adminHeader).send({...row,clientEmail:'other@example.com'})).status).toBe(200);await finish(row.id);expect((await points('owner')).points).toBe(4);expect((await points('other')).points).toBe(0);});
+
 test('availability covers 15-minute starts from 09:00, including former non-test slots',async()=>{const res=await availability();expect(res.status).toBe(200);expect(res.body.slots).toHaveLength(40);expect(res.body.availableSlots[0]).toBe('09:00');expect(res.body.availableSlots).toContain('09:15');expect(res.body.availableSlots).toContain('18:30');expect(res.body.availableSlots).not.toContain('18:45');expect((await create({appointmentStart:'09:15'})).status).toBe(201);});
 test('duration and full overlap are enforced on public requests, closing boundary is exact',async()=>{expect((await create({appointmentStart:'18:30'})).status).toBe(201);expect((await create({appointmentStart:'18:45'})).status).toBe(400);expect((await create({appointmentStart:'09:01'})).status).toBe(400);expect((await create({appointmentStart:'08:45'})).status).toBe(400);});
 test('admin duration changes affect future availability and bookings but never existing appointment end',async()=>{const old=await create();const config=await db.get("SELECT * FROM schedules WHERE zone='visage'");expect((await request(app).patch(`/admin/schedules/${config.id}`).set(adminHeader).send({...config,duration:75})).status).toBe(200);const slots=await availability();expect(slots.body.duration).toBe(75);expect(slots.body.availableSlots).not.toContain('09:00');expect(slots.body.availableSlots).toContain('10:30');expect(slots.body.availableSlots).not.toContain('18:00');const next=await create({appointmentStart:'11:00'});expect(next.status).toBe(201);expect((await db.get('SELECT appointmentEnd FROM bookings WHERE id=?',next.body.bookingId)).appointmentEnd).toBe('12:15');expect((await db.get('SELECT appointmentEnd FROM bookings WHERE id=?',old.body.bookingId)).appointmentEnd).toBe('10:30');expect((await create({appointmentStart:'14:00',duration:30})).status).toBe(409);});
