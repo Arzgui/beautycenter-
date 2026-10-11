@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly IS Beauty SQLite backup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=60
+Unit=isbeauty-backup.service
+
+[Install]
+WantedBy=timers.target

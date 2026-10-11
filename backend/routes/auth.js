@@ -9,7 +9,7 @@ import { body, validationResult } from "express-validator";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/database.js";
 import dotenv from "dotenv";
-import { authLimiter } from "../middleware/rateLimiter.js";
+import { authLimiter, authSetupLimiter } from "../middleware/rateLimiter.js";
 import { verifyToken } from "../middleware/auth.js";
 import { sendBrevoEmail } from "../utils/brevo.js";
 
@@ -257,7 +257,7 @@ router.post(
 );
 
 // ── 2FA SETUP ──
-router.post("/2fa/setup", verifyToken, authLimiter, async (req, res, next) => {
+router.post("/2fa/setup", verifyToken, authSetupLimiter, async (req, res, next) => {
   try {
     const user = await db.get('SELECT twoFactorEnabled FROM users WHERE id = ?', req.user.id);
     if (!user) return res.status(401).json({ message: 'Utilisateur introuvable.' });
@@ -282,7 +282,7 @@ router.post("/2fa/setup", verifyToken, authLimiter, async (req, res, next) => {
 router.post(
   "/2fa/enable",
   verifyToken,
-  authLimiter,
+  authSetupLimiter,
   body("token").matches(/^\d{6}$/),
   async (req, res, next) => {
     try {

@@ -1,5 +1,7 @@
 # Planning d'une seule professionnelle
 
+> Validation initiale du planning ci-dessous. Rapport actuel de préproduction et suite à 130 tests : [PREPRODUCTION_REVIEW.md](PREPRODUCTION_REVIEW.md).
+
 11 octobre 2026 — branche `fix/single-professional-planning`, issue de `fix/security-bookings-auth` (3d6615b). Aucune fusion, aucun déploiement, aucun accès aux données de production.
 
 ## Mécanismes réutilisés

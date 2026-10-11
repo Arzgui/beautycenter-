@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "test:security": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/security.test.js",
-    "seed": "node scripts/seed.js"
+    "db:migrate": "node scripts/migrate.js",
+    "db:backup": "node scripts/backup.js",
+    "admin:first": "node scripts/first-admin.js"
   },
   "keywords": [
     "booking",

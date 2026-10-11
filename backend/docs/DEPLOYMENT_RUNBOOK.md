@@ -1,4 +1,6 @@
-﻿# Déploiement manuel et migration SQLite
+> Procedure complete actuelle : [PRODUCTION_OPERATIONS.md](PRODUCTION_OPERATIONS.md). Audit et blocages : [PREPRODUCTION_REVIEW.md](PREPRODUCTION_REVIEW.md).
+
+# Déploiement manuel et migration SQLite
 
 Procédure préparée, jamais exécutée ici. Une fusion dans main lance uniquement les tests CI. Aucun job SSH, PM2 ou migration ne reste dans le workflow. Vérifier aussi les éventuelles automatisations d’hébergement extérieures au dépôt.
 

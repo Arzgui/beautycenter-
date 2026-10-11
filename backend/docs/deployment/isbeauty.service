@@ -1,0 +1,24 @@
+[Unit]
+Description=IS Beauty single application and reminder scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=isbeauty
+Group=isbeauty
+WorkingDirectory=/srv/is-beauty/backend
+Environment=NODE_ENV=production
+Environment=DOTENV_CONFIG_PATH=/etc/isbeauty/backend.env
+ExecStart=/usr/bin/node /srv/is-beauty/backend/server.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/isbeauty
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,5 @@
 import unavailabilityRoutes from './routes/admin/unavailability.js';
+import { validateRuntime } from './config/runtime.js';
 import { protectSourceFiles } from './middleware/publicFiles.js';
 import express from 'express';
 import dotenv from 'dotenv';
@@ -24,6 +25,7 @@ import { startReminderScheduler } from './utils/reminders.js';
 
 // Configuration des variables d'environnement
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+validateRuntime();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +39,7 @@ const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
   : ['http://localhost:4000'];
 
-app.set('trust proxy', 1);
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
 
 // Configuration de base de Helmet (sans la CSP par défaut qu'on gère manuellement)
 app.use(helmet({
@@ -71,7 +73,9 @@ app.use(
       if (!origin || ALLOWED_ORIGINS.includes(origin)) {
         return callback(null, true);
       }
-      callback(new Error('Origin non autorisé'));
+      const error = new Error('Origin non autorisé');
+      error.status = 403;
+      callback(error);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -193,6 +197,6 @@ app.get('*', (req, res, next) => {
 app.use(errorHandler);
 
 // Démarrage du serveur
-app.listen(PORT, () => {
+app.listen(PORT, process.env.HOST || (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0'), () => {
   console.log(`IS Beauty backend démarré sur http://localhost:${PORT}`);
 });

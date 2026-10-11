@@ -1,0 +1,18 @@
+[Unit]
+Description=Verified non-overwriting IS Beauty SQLite snapshot
+
+[Service]
+Type=oneshot
+User=isbeauty
+Group=isbeauty
+WorkingDirectory=/srv/is-beauty/backend
+Environment=NODE_ENV=production
+Environment=DOTENV_CONFIG_PATH=/etc/isbeauty/backend.env
+ExecStart=/usr/bin/node /srv/is-beauty/backend/scripts/backup.js
+TimeoutStartSec=300
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/isbeauty

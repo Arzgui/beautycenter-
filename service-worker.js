@@ -1,4 +1,4 @@
-const CACHE_NAME = 'is-beauty-pwa-v4-dynamic-booking';
+const CACHE_NAME = 'is-beauty-pwa-v5-preproduction';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -22,15 +22,14 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) =>
       Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName.startsWith('is-beauty-pwa-') && cacheName !== CACHE_NAME) {
             return caches.delete(cacheName);
           }
           return null;
         })
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -38,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
   if (requestUrl.pathname.startsWith('/api/')) return;
   // Auth pages and scripts must not retain an obsolete API contract.
-  if (requestUrl.pathname.endsWith('.html') || requestUrl.pathname.endsWith('.js') || requestUrl.pathname === '/') {
+  if (requestUrl.pathname.endsWith('.html') || requestUrl.pathname.endsWith('.js') || requestUrl.pathname.endsWith('.css') || requestUrl.pathname === '/') {
     event.respondWith(fetch(event.request).catch(async () =>
       await caches.match(event.request) || (event.request.mode === 'navigate' ? await caches.match('/offline.html') : new Response('', { status: 408 }))
     ));
