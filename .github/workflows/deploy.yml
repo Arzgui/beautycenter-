@@ -57,6 +57,22 @@ jobs:
         with:
           chrome-version: stable
           install-dependencies: true
+      - name: Allow Chrome sandbox on Ubuntu runner
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          # Ubuntu restricts user namespaces for Chrome for Testing outside /opt/google/chrome.
+          # Scope the exception to this executable on this ephemeral runner; keep Chrome sandbox enabled.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            cat <<EOF | sudo tee /etc/apparmor.d/isbeauty-ci-chrome > /dev/null
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile isbeauty-ci-chrome "$CHROME_PATH" flags=(unconfined) {
+            userns,
+          }
+          EOF
+            sudo apparmor_parser -r /etc/apparmor.d/isbeauty-ci-chrome
+          fi
       - name: Browser smoke with isolated fixtures
         working-directory: backend
         env:
