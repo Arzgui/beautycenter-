@@ -2,6 +2,10 @@
 
 11 octobre 2026. Complète DEPLOYMENT_RUNBOOK.md. Aucun secret utilisable inclus. Ces exemples visent un serveur Linux systemd avec un seul processus Node et un reverse proxy Nginx ; adapter explicitement les chemins/utilisateurs à l'environnement réel. Aucun accès au VPS réalisé.
 
+## Dépendances qualifiées
+
+Voir [DEPENDENCY_REMEDIATION.md](DEPENDENCY_REMEDIATION.md) : Node 22.15.0 testé, bcrypt 6.0.0, sqlite3 6.0.1 (SQLite 3.52.0), UUID 14.0.3, tar 7.5.22 dans package-lock.json. Utiliser npm ci et le verrouillage versionné, puis npm audit --omit=dev avant mise en ligne. Ne pas recopier node_modules de Windows sur Linux : installer les binaires natifs sur la plateforme cible. Le test Linux de CI ne remplace pas la qualification de l'architecture/libc du serveur. Aucun nouveau paramètre ni aucune migration de schéma applicatif pour cette mise à jour. sqlite3 étant archivé, faire valider explicitement cette exception de maintenance et prévoir le remplacement du pilote ; audit à zéro ne signifie pas maintenance garantie.
+
 ## Configuration obligatoire
 
 Conserver les secrets hors du dépôt, par exemple `/etc/isbeauty/backend.env`, lisible uniquement par root et l'utilisateur de service (0640), répertoire 0750. Ne jamais publier ce fichier, les bases, WAL/SHM ou sauvegardes. Le serveur doit servir les fichiers à travers Express ; ne pas exposer le dépôt entier avec une directive root Nginx indépendante des protections Express.

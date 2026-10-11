@@ -3,6 +3,7 @@ import express from 'express';
 import authRoutes from '../routes/auth.js';
 import { db, initializeDatabase } from '../config/database.js';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
 
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 
@@ -38,5 +39,19 @@ describe('Auth API', () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it('accepte au login un hash conserve de bcrypt 5.1.1 apres la mise a jour native', async () => {
+    // Generated with bcrypt 5.1.1 before upgrading; synthetic test credentials only.
+    const legacyHash = '$2b$04$X8opcgVXgWDPlXzCeE20heYSuswIfhPfL.46dBuzC19yjYtMk5X5y';
+    await db.run('INSERT INTO users (id, email, passwordHash, name, emailVerified, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      'legacy-bcrypt-client', testEmail, legacyHash, 'Legacy test', 1, new Date().toISOString());
+    const response = await request(app).post('/api/auth/login').send({
+      email: testEmail, password: 'Legacy-test-password-123!',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body.token).toEqual(expect.any(String));
+    expect(await bcrypt.compare('Incorrect-password!', legacyHash)).toBe(false);
+    expect((await db.get('SELECT passwordHash FROM users WHERE id = ?', 'legacy-bcrypt-client')).passwordHash).toBe(legacyHash);
   });
 });

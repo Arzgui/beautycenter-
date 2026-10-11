@@ -30,3 +30,7 @@ jobs:
       - name: Run tests
         working-directory: backend
         run: npm test
+
+      - name: Audit production dependencies
+        working-directory: backend
+        run: npm audit --omit=dev

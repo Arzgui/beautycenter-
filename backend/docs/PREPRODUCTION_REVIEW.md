@@ -2,6 +2,8 @@
 
 11 octobre 2026, branche fix/single-professional-planning. Le projet reste en test. Aucune donnée existante supprimée/réinitialisée, aucune base de production ouverte, aucun secret réel créé ou modifié. Seuls les fichiers temporaires générés par les tests sont nettoyés. Aucune fusion, installation de services système ni mise en ligne.
 
+> Mise à jour des dépendances : [DEPENDENCY_REMEDIATION.md](DEPENDENCY_REMEDIATION.md). bcrypt 6.0.0, sqlite3 6.0.1, UUID 14.0.3, tar 7.5.22 ; audit production à zéro, 131 tests réussis. Le décompte initial des alertes et des tests ci-dessous reste historique. Le risque de maintenance sqlite3 et les alertes dev restent explicités dans le nouveau rapport.
+
 ## Vérifications et corrections
 
 | Axe | État | Preuve / correction |
